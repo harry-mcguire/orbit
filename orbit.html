@@ -1,0 +1,2818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ORBIT — Optimised Revision Based Intelligent Timetable</title>
+<style>
+  :root{
+    --bg:#05070e;
+    --ink:#e9eff9;
+    --muted:#94a8c5;
+    --dim:#63789c;
+    --panel:#0a111d;
+    --panel-2:#0d1626;
+    --hair:rgba(150,182,222,.18);
+    --hair-2:rgba(150,182,222,.09);
+    --accent:#38d6ff;
+    --accent-2:#a78bfa;
+    --critical:#ff5f7a;
+    --high:#ffb648;
+    --medium:#2dd4bf;
+    --low:#5ce27f;
+    --r-lg:18px; --r-md:12px; --r-sm:9px;
+    --mono:ui-monospace,"Cascadia Mono","JetBrains Mono",Consolas,Menlo,monospace;
+    --sans:system-ui,-apple-system,"Segoe UI",Roboto,Inter,sans-serif;
+    --shadow:0 26px 60px -34px rgba(0,0,0,.95);
+    --hh:54px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:
+      radial-gradient(1200px 700px at 6% -14%,rgba(56,214,255,.12),transparent 62%),
+      radial-gradient(1000px 620px at 98% -6%,rgba(167,139,250,.13),transparent 64%),
+      radial-gradient(900px 900px at 50% 120%,rgba(45,212,191,.07),transparent 60%),
+      var(--bg);
+    background-attachment:fixed;
+    color:var(--ink);font-family:var(--sans);font-size:15px;line-height:1.55;min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  body::before{
+    content:"";position:fixed;inset:0;pointer-events:none;z-index:0;opacity:.5;
+    background-image:linear-gradient(rgba(150,182,222,.045) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(150,182,222,.045) 1px,transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(circle at 50% 20%,#000,transparent 78%);
+    -webkit-mask-image:radial-gradient(circle at 50% 20%,#000,transparent 78%);
+  }
+  code{font-family:var(--mono);font-size:.92em;color:var(--accent)}
+  ::selection{background:rgba(56,214,255,.28)}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:6px}
+  .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+  /* ---------------- shell ---------------- */
+  .app{position:relative;z-index:1;display:grid;grid-template-columns:250px minmax(0,1fr);max-width:1620px;margin:0 auto;align-items:start}
+  .rail{position:sticky;top:0;height:100vh;display:flex;flex-direction:column;gap:20px;padding:22px 16px;border-right:1px solid var(--hair-2);overflow:auto}
+  .main{min-width:0;display:flex;flex-direction:column}
+  .content{padding:26px 26px 96px;min-width:0}
+
+  .rail-brand{display:flex;align-items:center;gap:11px}
+  .orbit-mark{position:relative;width:30px;height:30px;flex:none;border-radius:50%;border:1px solid rgba(56,214,255,.4)}
+  .orbit-mark i{position:absolute;border-radius:50%}
+  .orbit-mark i:first-child{inset:8px;background:radial-gradient(circle at 35% 30%,#fff,var(--accent) 60%,var(--accent-2));box-shadow:0 0 14px rgba(56,214,255,.75)}
+  .orbit-mark i:last-child{inset:-1px;border:1px dashed rgba(167,139,250,.5);animation:spin 22s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .rb-txt b{display:block;font-family:var(--mono);font-size:17px;letter-spacing:.3em}
+  .rb-txt small{display:block;font-family:var(--mono);font-size:9.5px;letter-spacing:.1em;color:var(--dim);text-transform:uppercase;margin-top:2px}
+
+  .steps{display:flex;flex-direction:column;gap:3px}
+  .step{display:flex;align-items:center;gap:11px;width:100%;padding:10px 11px;border-radius:11px;border:1px solid transparent;
+    background:transparent;color:var(--dim);font:600 11.5px/1 var(--mono);letter-spacing:.11em;text-transform:uppercase;
+    cursor:not-allowed;transition:.18s ease;text-align:left}
+  .step .n{display:grid;place-items:center;width:21px;height:21px;border-radius:7px;background:rgba(150,182,222,.09);font-size:10.5px;flex:none;transition:.18s}
+  .step.ready{cursor:pointer;color:var(--muted)}
+  .step.ready:hover{background:rgba(56,214,255,.07);color:var(--ink)}
+  .step.active{background:linear-gradient(90deg,rgba(56,214,255,.17),rgba(167,139,250,.08));border-color:rgba(56,214,255,.32);color:#fff}
+  .step.active .n{background:var(--accent);color:#04121b;font-weight:700}
+  .rail-stats{display:grid;gap:9px;padding:14px;border:1px solid var(--hair-2);border-radius:14px;
+    background:linear-gradient(180deg,rgba(150,182,222,.06),transparent)}
+  .rs{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font:500 10px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
+  .rs b{font-size:14px;color:var(--ink);letter-spacing:.02em;font-weight:700}
+  .rail-foot{margin-top:auto;font-family:var(--mono);font-size:9.5px;line-height:1.9;letter-spacing:.05em;color:var(--dim)}
+  .rail-foot span{color:var(--accent)}
+
+  .topbar{position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:13px 26px;background:rgba(5,7,14,.78);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);border-bottom:1px solid var(--hair-2)}
+  .crumb{font:600 11px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--muted)}
+  .crumb b{color:var(--accent)}
+  .top-actions{display:flex;gap:8px}
+
+  /* ---------------- buttons ---------------- */
+  .btn{font-family:var(--mono);font-size:11px;letter-spacing:.11em;text-transform:uppercase;font-weight:600;
+    border-radius:10px;border:1px solid var(--hair);background:rgba(150,182,222,.05);color:var(--ink);
+    padding:9px 15px;cursor:pointer;transition:.17s ease;white-space:nowrap;display:inline-flex;align-items:center;gap:7px}
+  .btn:hover{border-color:rgba(56,214,255,.5);background:rgba(56,214,255,.1);transform:translateY(-1px)}
+  .btn:active{transform:translateY(0)}
+  .btn.primary{border-color:transparent;color:#03121b;background:linear-gradient(94deg,var(--accent),#8fe3ff 42%,var(--accent-2));
+    box-shadow:0 14px 34px -18px rgba(56,214,255,.9)}
+  .btn.primary:hover{filter:brightness(1.09);background:linear-gradient(94deg,var(--accent),#8fe3ff 42%,var(--accent-2))}
+  .btn.big{padding:14px 24px;font-size:12px}
+  .btn.tiny{padding:7px 11px;font-size:10px}
+  .btn.ghost{background:transparent}
+  .btn.icon{padding:0;width:28px;height:28px;justify-content:center;border-radius:8px;color:var(--dim);font-size:14px;line-height:1}
+  .btn.icon:hover{color:var(--critical);border-color:rgba(255,95,122,.5);background:rgba(255,95,122,.08)}
+  .btn.on{border-color:transparent;background:rgba(56,214,255,.16);color:var(--accent)}
+
+  /* ---------------- views ---------------- */
+  .view{display:none}
+  .view.on{display:block;animation:rise .26s cubic-bezier(.22,.61,.36,1)}
+  @keyframes rise{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  .page-head{margin-bottom:22px}
+  .eyebrow{display:block;font:600 10px var(--mono);letter-spacing:.24em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+  .page-head h1{margin:0;font-size:27px;font-weight:650;letter-spacing:-.015em}
+  .page-head p{margin:8px 0 0;color:var(--muted);max-width:78ch;font-size:14px}
+
+  .block{position:relative;border:1px solid var(--hair-2);border-radius:var(--r-lg);overflow:hidden;
+    background:linear-gradient(180deg,var(--panel-2),var(--panel));padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+  .block::before{content:"";position:absolute;left:0;right:0;top:0;height:1px;
+    background:linear-gradient(90deg,transparent,rgba(255,255,255,.16),transparent)}
+  .block-head{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap;margin-bottom:16px}
+  .block-head h2{margin:0;font:600 12.5px var(--mono);letter-spacing:.18em;text-transform:uppercase;color:var(--ink)}
+  .block-head p{margin:5px 0 0;color:var(--muted);font-size:13px;max-width:70ch}
+
+  /* ---------------- fields ---------------- */
+  label.f{display:block;font:500 9.5px var(--mono);letter-spacing:.15em;text-transform:uppercase;color:var(--dim);margin:0 0 6px}
+  input,select{width:100%;background:#070c15;border:1px solid var(--hair-2);color:var(--ink);border-radius:var(--r-sm);
+    padding:9px 11px;font-size:14px;font-family:var(--sans);transition:.15s}
+  input:hover{border-color:var(--hair)}
+  input:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,214,255,.15);background:#080f1a}
+  input[type=number]{font-family:var(--mono)}
+  input[type=time]{font-family:var(--mono);color-scheme:dark}
+  input[type=time]::-webkit-calendar-picker-indicator{opacity:.35;cursor:pointer}
+  input.invalid{border-color:var(--critical);box-shadow:0 0 0 3px rgba(255,95,122,.14)}
+  .perf{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px}
+
+  /* ---------------- window rows ---------------- */
+  .win-table{display:grid}
+  .win-row{display:grid;grid-template-columns:86px 74px minmax(0,1fr) auto;gap:14px;align-items:center;
+    padding:11px 0;border-top:1px solid var(--hair-2)}
+  .win-row:first-child{border-top:none}
+  .day{font:600 11.5px var(--mono);letter-spacing:.15em;color:var(--ink)}
+  .tot{font:500 11px var(--mono);color:var(--muted)}
+  .wins{display:flex;flex-wrap:wrap;gap:8px;min-width:0}
+  .wchip{display:inline-flex;align-items:center;gap:2px;padding:3px 4px 3px 6px;border-radius:999px;
+    border:1px solid var(--hair-2);background:rgba(56,214,255,.05);transition:.15s}
+  .wchip:hover{border-color:rgba(56,214,255,.35)}
+  .wchip input[type=time]{width:88px;border:none;background:transparent;padding:4px 2px;font-size:12.5px;text-align:center}
+  .wchip input[type=time]:focus{box-shadow:none;background:rgba(56,214,255,.14);border-radius:7px}
+  .wchip .ar{color:var(--dim);font-family:var(--mono);font-size:12px;padding:0 2px}
+  .no-win{font:500 11px var(--mono);color:var(--dim);letter-spacing:.08em}
+
+  /* ---------------- subject accordion ---------------- */
+  .sub{border:1px solid var(--hair-2);border-radius:16px;background:linear-gradient(180deg,#0c1421,#090f1a);margin-bottom:12px;overflow:hidden}
+  .sub-head{display:grid;grid-template-columns:auto minmax(0,1fr) 132px auto auto;gap:12px;align-items:center;padding:12px 14px}
+  .dot{width:9px;height:9px;border-radius:50%;background:var(--c);box-shadow:0 0 0 4px color-mix(in srgb,var(--c) 18%,transparent)}
+  .sub-name{font:600 14px var(--mono);letter-spacing:.11em;text-transform:uppercase;background:transparent;border:1px solid transparent;padding:7px 9px;border-radius:9px}
+  .sub-name:hover{border-color:var(--hair-2);background:#070d17}
+  .sub-name:focus{border-color:var(--accent);background:#070d17}
+  .sub-count{font:500 10px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+  .sub-base{display:flex;align-items:center;gap:6px;min-width:0}
+  .sub-base input{width:66px;padding:6px 8px;text-align:right}
+  .sub-base small{font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);white-space:nowrap}
+  .sub-foot{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px;padding-top:12px;border-top:1px dashed var(--hair-2)}
+  .chev{width:28px;height:28px;border-radius:8px;border:1px solid var(--hair-2);background:transparent;color:var(--muted);
+    cursor:pointer;font-size:11px;display:grid;place-items:center;transition:.18s}
+  .chev:hover{border-color:var(--accent);color:var(--accent)}
+  .sub:not(.open) .chev{transform:rotate(-90deg)}
+  .sub-body{display:none;padding:4px 14px 14px;border-top:1px dashed var(--hair-2)}
+  .sub.open .sub-body{display:block}
+  .topic-row{display:grid;grid-template-columns:24px minmax(0,1.5fr) repeat(2,minmax(120px,1fr)) 28px;gap:14px;align-items:center;
+    padding:11px 0;border-bottom:1px dashed var(--hair-2)}
+  .topic-row:last-of-type{border-bottom:none}
+  .tnum{font:600 10.5px var(--mono);color:var(--c,var(--dim))}
+  .tin{background:transparent;border:1px solid transparent;padding:7px 9px;border-radius:9px;font-size:13.5px;letter-spacing:.01em;text-transform:uppercase}
+  .tin:hover{border-color:var(--hair-2);background:#070d17}
+  .tin:focus{border-color:var(--accent);background:#070d17}
+  .rg-top{display:flex;justify-content:space-between;align-items:baseline;font:500 9.5px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--dim)}
+  .rg-top b{font-size:12px;letter-spacing:.02em;color:var(--c,var(--accent))}
+
+  /* ---------------- range ---------------- */
+  input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:22px;background:transparent;padding:0;border:none;cursor:pointer}
+  input[type=range]:focus{outline:none}
+  input[type=range]::-webkit-slider-runnable-track{height:4px;border-radius:999px;
+    background:linear-gradient(90deg,var(--c,var(--accent)) var(--p,50%),rgba(150,182,222,.16) var(--p,50%))}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:14px;height:14px;border-radius:50%;background:#eef8ff;
+    margin-top:-5px;box-shadow:0 0 0 3px color-mix(in srgb,var(--c,var(--accent)) 30%,transparent);transition:.15s}
+  input[type=range]:hover::-webkit-slider-thumb{box-shadow:0 0 0 5px color-mix(in srgb,var(--c,var(--accent)) 26%,transparent)}
+  input[type=range]::-moz-range-track{height:4px;border-radius:999px;background:rgba(150,182,222,.16)}
+  input[type=range]::-moz-range-progress{height:4px;border-radius:999px;background:var(--c,var(--accent))}
+  input[type=range]::-moz-range-thumb{width:14px;height:14px;border:none;border-radius:50%;background:#eef8ff}
+
+  /* ---------------- switch ---------------- */
+  .switch{display:flex;align-items:flex-start;gap:12px;margin-top:18px;font-size:13px;color:var(--muted);cursor:pointer;line-height:1.5}
+  .switch input{position:absolute;width:1px;height:1px;opacity:0}
+  .track-sw{width:42px;height:23px;border-radius:999px;background:rgba(150,182,222,.14);border:1px solid var(--hair-2);
+    position:relative;flex:none;transition:.2s;margin-top:1px}
+  .track-sw::after{content:"";position:absolute;top:2px;left:2px;width:17px;height:17px;border-radius:50%;background:#c3d4ea;transition:.2s}
+  .switch input:checked + .track-sw{background:linear-gradient(90deg,var(--accent),var(--accent-2));border-color:transparent}
+  .switch input:checked + .track-sw::after{transform:translateX(19px);background:#04121b}
+  .switch input:focus-visible + .track-sw{box-shadow:0 0 0 3px rgba(56,214,255,.35)}
+  .switch b{color:var(--ink)}
+
+  .cta{display:flex;align-items:center;justify-content:space-between;gap:16px;flex-wrap:wrap;padding:15px 18px;
+    border:1px solid var(--hair-2);border-radius:var(--r-lg);background:linear-gradient(92deg,rgba(56,214,255,.09),rgba(167,139,250,.07))}
+  .cta-actions{display:flex;gap:9px;flex-wrap:wrap}
+  .validation{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:9px}
+  .validation::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--low);box-shadow:0 0 10px var(--low)}
+  .validation.bad{color:var(--critical)}
+  .validation.bad::before{background:var(--critical);box-shadow:0 0 10px var(--critical)}
+
+  /* ---------------- tiles / chips ---------------- */
+  .tiles{display:grid;gap:11px;grid-template-columns:repeat(auto-fit,minmax(164px,1fr))}
+  .tile{position:relative;overflow:hidden;border:1px solid var(--hair-2);border-radius:14px;padding:13px 14px;
+    background:linear-gradient(180deg,#0d1626,#0a101b)}
+  .tile .k{font:500 9.5px var(--mono);letter-spacing:.16em;text-transform:uppercase;color:var(--dim)}
+  .tile .v{font:700 22px/1.2 var(--mono);margin-top:7px;letter-spacing:-.01em}
+  .tile .s{margin-top:3px;font-size:11.5px;color:var(--muted)}
+  .tile::after{content:"";position:absolute;left:0;bottom:0;height:2px;width:var(--w,0%);
+    background:linear-gradient(90deg,var(--c,var(--accent)),transparent);transition:width .5s ease}
+  .chip{display:inline-flex;align-items:center;gap:6px;font:600 9.5px var(--mono);letter-spacing:.13em;text-transform:uppercase;
+    border-radius:999px;padding:4px 9px;border:1px solid color-mix(in srgb,var(--c,var(--muted)) 45%,transparent);
+    color:var(--c,var(--muted));background:color-mix(in srgb,var(--c,var(--muted)) 10%,transparent);white-space:nowrap}
+  .chip::before{content:"";width:5px;height:5px;border-radius:50%;background:var(--c,var(--muted))}
+  .c-CRITICAL{--c:var(--critical)} .c-HIGH{--c:var(--high)} .c-MEDIUM{--c:var(--medium)} .c-LOW{--c:var(--low)}
+  .bar{height:5px;border-radius:999px;background:rgba(150,182,222,.12);overflow:hidden}
+  .bar i{display:block;height:100%;border-radius:999px;background:var(--c,var(--accent))}
+  .rule{height:1px;background:linear-gradient(90deg,var(--hair),transparent);margin:18px 0}
+  .note{font-size:12.5px;color:var(--muted)}
+  .lock{font:500 12px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);text-align:center;padding:70px 12px}
+  .sub-h{font:600 11px var(--mono);letter-spacing:.19em;text-transform:uppercase;color:var(--accent);margin:0 0 12px}
+
+  /* ---------------- bands ---------------- */
+  .band-wrap{margin-bottom:30px}
+  .band-lab{display:flex;justify-content:space-between;font:500 10px var(--mono);letter-spacing:.13em;text-transform:uppercase;color:var(--dim);margin-bottom:9px}
+  .band-rel{position:relative}
+  .band{display:flex;height:30px;border-radius:9px;overflow:hidden;border:1px solid var(--hair-2)}
+  .band i{display:grid;place-items:center;font:600 8.5px var(--mono);letter-spacing:.06em;color:rgba(255,255,255,.6);
+    background:color-mix(in srgb,var(--c) 22%,#0a101b);border-right:1px solid rgba(0,0,0,.4);overflow:hidden;white-space:nowrap;padding:0 4px}
+  .band i:last-of-type{border-right:none}
+  .mk{position:absolute;top:-4px;bottom:-4px;width:2px;border-radius:2px;background:#fff;box-shadow:0 0 12px #fff;transform:translateX(-1px);z-index:2}
+  .mk::after{content:attr(data-l);position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);
+    font:600 9px var(--mono);letter-spacing:.1em;color:#fff;white-space:nowrap}
+
+  /* ---------------- subject result ---------------- */
+  .sr-card{border:1px solid var(--hair-2);border-radius:14px;padding:14px;margin-bottom:11px;background:linear-gradient(180deg,#0c1421,#090f1a);position:relative;overflow:hidden}
+  .sr-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:3px;background:var(--c)}
+  .sr-top{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap}
+  .sr-name{font:600 13px var(--mono);letter-spacing:.13em;text-transform:uppercase}
+  .chain{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:12px 0 10px;font:500 10.5px var(--mono);letter-spacing:.06em;color:var(--dim)}
+  .chain b{display:block;font-size:14px;color:var(--ink);letter-spacing:-.01em;margin-top:2px}
+  .chain em{font-style:normal;color:var(--muted);padding:0 2px}
+  .chain span{min-width:66px}
+
+  /* ---------------- vector ---------------- */
+  .split{display:grid;grid-template-columns:minmax(280px,400px) minmax(0,1fr);gap:20px;align-items:start}
+  .quad{width:100%;height:auto;border:1px solid var(--hair-2);border-radius:14px;background:#070d17;display:block}
+  .quad .ax{stroke:rgba(150,182,222,.16);stroke-width:1}
+  .quad .lb{font-family:var(--mono);font-size:8.5px;letter-spacing:.12em;fill:#63789c;text-transform:uppercase}
+  .quad .zn{font-family:var(--mono);font-size:8px;letter-spacing:.14em;fill:rgba(255,255,255,.34)}
+  .quad circle{transition:.18s}
+  .quad circle:hover{stroke:#fff;stroke-width:1.5}
+  .rlist{display:grid;gap:7px}
+  .rrow{display:grid;grid-template-columns:22px 8px minmax(0,1.5fr) repeat(3,minmax(48px,.5fr)) minmax(84px,auto);
+    gap:11px;align-items:center;padding:9px 11px;border:1px solid var(--hair-2);border-radius:11px;background:#0a101b;transition:.16s}
+  .rrow:hover{border-color:var(--hair);transform:translateX(2px)}
+  .rrow .rk{font:600 10px var(--mono);color:var(--dim)}
+  .rrow .cd{width:8px;height:26px;border-radius:3px;background:var(--c)}
+  .rrow .nm{min-width:0}
+  .rrow .nm b{display:block;font-size:13px;font-weight:550;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .rrow .nm small{font:500 9px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--dim)}
+  .rrow .vv{font:600 12.5px var(--mono);text-align:right}
+  .rrow .vv small{display:block;font:500 8.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+
+  /* ---------------- timetable ---------------- */
+  .tt-bar{display:flex;justify-content:space-between;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:14px}
+  .tt-tools{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .seg-ctl{display:inline-flex;border:1px solid var(--hair-2);border-radius:10px;overflow:hidden}
+  .seg-ctl button{border:none;background:transparent;color:var(--muted);font:600 10.5px var(--mono);letter-spacing:.12em;
+    text-transform:uppercase;padding:8px 14px;cursor:pointer;transition:.16s}
+  .seg-ctl button:hover{color:var(--ink)}
+  .seg-ctl button.on{background:rgba(56,214,255,.16);color:var(--accent)}
+  .load-bar{display:flex;height:9px;border-radius:999px;overflow:hidden;border:1px solid var(--hair-2);flex:1;min-width:200px}
+  .load-bar div{height:100%}
+  .legend{display:flex;flex-wrap:wrap;gap:7px}
+  .lg{display:inline-flex;align-items:center;gap:6px;font:500 9.5px var(--mono);letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+  .lg i{width:9px;height:9px;border-radius:3px;background:var(--c)}
+
+  .tt-scroll{overflow-x:auto;border:1px solid var(--hair-2);border-radius:var(--r-lg);background:#070d17}
+  .tt{display:grid;grid-template-columns:56px repeat(7,minmax(112px,1fr));min-width:760px}
+  .tt-h{padding:10px 6px;border-bottom:1px solid var(--hair);border-left:1px solid var(--hair-2);text-align:center;
+    font:600 10.5px var(--mono);letter-spacing:.14em;color:var(--accent);background:#091020}
+  .tt-h:first-child{border-left:none}
+  .tt-h span{display:block;font:500 9.5px var(--mono);letter-spacing:.02em;color:var(--dim);margin-top:3px}
+  .tt-gut{position:relative;border-bottom:1px solid var(--hair-2)}
+  .tt-gut i{position:absolute;right:8px;top:0;transform:translateY(-50%);font:500 9.5px var(--mono);color:var(--dim)}
+  .tt-col{position:relative;border-left:1px solid var(--hair-2);background-color:#040810;
+    background-image:repeating-linear-gradient(180deg,rgba(150,182,222,.08) 0 1px,transparent 1px var(--hh))}
+  .tt-win{position:absolute;left:2px;right:2px;background:rgba(56,214,255,.05);border-radius:6px;
+    box-shadow:inset 0 0 0 1px rgba(56,214,255,.11)}
+  .tt-jump{position:absolute;left:0;right:0;top:0;height:0;border-top:1px dashed rgba(150,182,222,.4);z-index:4}
+  .tt-brk{position:absolute;left:4px;right:4px;border-radius:3px;
+    background:repeating-linear-gradient(45deg,rgba(150,182,222,.16) 0 3px,transparent 3px 6px)}
+  .tt-b{position:absolute;left:4px;right:4px;border-radius:8px;padding:3px 6px;overflow:hidden;cursor:default;
+    background:color-mix(in srgb,var(--c) 17%,#0a101b);border:1px solid color-mix(in srgb,var(--c) 34%,transparent);
+    border-left:3px solid var(--c);transition:.16s}
+  .tt-b:hover{transform:translateY(-1px);z-index:6;box-shadow:0 10px 24px -12px #000;border-color:var(--c)}
+  .tt-b.extra{border-style:dashed;background:color-mix(in srgb,var(--c) 9%,#0a101b)}
+  .tt-b .s{font:600 7.5px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--c);opacity:.95;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tt-b .t{font-size:10.5px;line-height:1.2;color:var(--ink);overflow:hidden;
+    display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2}
+  .tt-b .m{font:500 8.5px var(--mono);color:var(--muted);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .tt-b.sm{padding:3px 5px}
+  .tt-b.sm .m{display:none}
+  .tt-b.sm .t{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:block}
+  .tt-b.xs{padding:2px 5px}
+  .tt-b.xs .s,.tt-b.xs .m{display:none}
+  .tt-b.xs .t{font-size:10px}
+  .tt-empty{padding:26px 14px;text-align:center;font:500 11px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);grid-column:1/-1}
+
+  /* list pane */
+  .days-grid{display:grid;gap:12px;grid-template-columns:repeat(auto-fill,minmax(250px,1fr))}
+  .day-col{border:1px solid var(--hair-2);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:8px;
+    background:linear-gradient(180deg,#0c1422,#090f1a)}
+  .day-col .hd{display:flex;justify-content:space-between;align-items:baseline}
+  .day-col .hd .d{font:600 11px var(--mono);letter-spacing:.17em;color:var(--accent)}
+  .day-col .hd .h{font:500 10.5px var(--mono);color:var(--muted)}
+  .track{display:flex;height:9px;border-radius:999px;overflow:hidden;background:rgba(150,182,222,.08)}
+  .track div{height:100%}
+  .seg-free{background:repeating-linear-gradient(45deg,#141f31,#141f31 4px,#0d1725 4px,#0d1725 8px)}
+  .seg-break{background:#1e2c42}
+  .seg-extra{opacity:.5}
+  .sess{display:flex;gap:10px;align-items:flex-start;border-left:2px solid var(--c);border-radius:0 9px 9px 0;
+    background:rgba(150,182,222,.03);padding:7px 9px;transition:.16s}
+  .sess:hover{background:rgba(150,182,222,.07)}
+  .sess.extra{border-left-style:dashed;background:transparent}
+  .sess .time{font:500 10.5px/1.5 var(--mono);color:var(--muted);flex:none}
+  .sess .body{min-width:0;flex:1}
+  .sess .subj{font:600 9.5px var(--mono);letter-spacing:.12em;text-transform:uppercase;color:var(--c)}
+  .sess .topic{font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .sess .dur{font:500 9.5px var(--mono);color:var(--dim);margin-top:2px}
+  .tag{font:600 8px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim);border:1px solid var(--hair-2);
+    border-radius:5px;padding:1px 4px;margin-left:6px;vertical-align:1px}
+  .empty{font:500 11px var(--mono);letter-spacing:.06em;color:var(--dim);padding:8px 2px}
+
+  /* ---------------- console ---------------- */
+  details.cbox{border:1px solid var(--hair-2);border-radius:14px;background:#04070d;overflow:hidden}
+  details.cbox>summary{cursor:pointer;padding:12px 15px;font:600 10.5px var(--mono);letter-spacing:.15em;text-transform:uppercase;
+    color:var(--muted);list-style:none;display:flex;align-items:center;gap:8px}
+  details.cbox>summary::-webkit-details-marker{display:none}
+  details.cbox>summary::before{content:"▸";color:var(--accent);transition:.18s}
+  details.cbox[open]>summary::before{transform:rotate(90deg)}
+  pre.console{margin:0;border-top:1px solid var(--hair-2);padding:15px;overflow:auto;max-height:440px;
+    font-family:var(--mono);font-size:11.5px;line-height:1.45;color:#9fe0ff;white-space:pre}
+
+  /* ---------------- toast ---------------- */
+  .toast{position:fixed;left:50%;bottom:26px;transform:translate(-50%,26px);background:#111b2c;border:1px solid var(--critical);
+    color:var(--ink);border-radius:12px;padding:12px 18px;font-size:13px;box-shadow:0 26px 60px -26px #000;opacity:0;
+    pointer-events:none;transition:.28s cubic-bezier(.22,.61,.36,1);max-width:min(90vw,560px);z-index:60}
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  .toast.ok{border-color:var(--low)}
+
+  /* ---------------- motion ---------------- */
+  body::after{content:"";position:fixed;inset:-25%;z-index:0;pointer-events:none;opacity:.5;filter:blur(26px);
+    background:
+      radial-gradient(34% 26% at 16% 20%,rgba(56,214,255,.20),transparent 70%),
+      radial-gradient(30% 24% at 84% 12%,rgba(167,139,250,.20),transparent 70%),
+      radial-gradient(28% 22% at 62% 88%,rgba(45,212,191,.15),transparent 70%);
+    animation:drift 38s ease-in-out infinite alternate}
+  @keyframes drift{
+    0%{transform:translate3d(-3%,-2%,0) rotate(0deg) scale(1)}
+    50%{transform:translate3d(4%,3%,0) rotate(8deg) scale(1.08)}
+    100%{transform:translate3d(-2%,5%,0) rotate(-6deg) scale(1.03)}}
+  @keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+  @keyframes pop{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:none}}
+  @keyframes sheen{to{transform:translateX(240%)}}
+  @keyframes sweep{to{left:140%}}
+  @keyframes slide{to{background-position:-260% 0}}
+  @keyframes halo{0%{transform:scale(.88);opacity:.75}70%,100%{transform:scale(1.16);opacity:0}}
+  @keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+  @keyframes msgIn{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:none}}
+  @keyframes dotBounce{0%,100%{transform:translateY(0);opacity:.35}50%{transform:translateY(-4px);opacity:1}}
+  @keyframes flashIn{0%{opacity:0}16%{opacity:1}100%{opacity:0}}
+  @keyframes nudge{0%,100%{transform:none}25%{transform:translateX(-2px)}75%{transform:translateX(2px)}}
+
+  .view.anim .tiles>*,.view.anim .rlist>*,.view.anim .days-grid>*,.view.anim .win-row,
+  .view.anim .sub,.view.anim .band-wrap,.view.anim .split>*,.view.anim .perf>*,.view.anim .sr-card{
+    animation:fadeUp .44s cubic-bezier(.22,.61,.36,1) backwards;animation-delay:calc(var(--i,0)*44ms)}
+  .view.anim .tt-col .tt-b{animation:pop .32s ease-out backwards;animation-delay:calc(var(--i,0)*16ms)}
+  .view.anim .bar i{transition:width .8s cubic-bezier(.22,.61,.36,1)}
+  .view.anim .tile::after{transition:width .8s cubic-bezier(.22,.61,.36,1)}
+
+  .tile{transition:transform .2s ease,border-color .2s ease,box-shadow .2s ease}
+  .tile::before{content:"";position:absolute;inset:0;pointer-events:none;transform:translateX(-120%);
+    background:linear-gradient(115deg,transparent 34%,rgba(255,255,255,.09) 46%,transparent 58%)}
+  .tile:hover{transform:translateY(-3px);border-color:rgba(56,214,255,.34);box-shadow:0 20px 38px -24px rgba(56,214,255,.85)}
+  .tile:hover::before{animation:sheen .95s ease-out}
+
+  .btn.primary{position:relative;overflow:hidden}
+  .btn.primary::after{content:"";position:absolute;top:-20%;bottom:-20%;left:-70%;width:44%;pointer-events:none;
+    transform:skewX(-18deg);background:linear-gradient(100deg,transparent,rgba(255,255,255,.55),transparent)}
+  .btn.primary:hover::after{animation:sweep .85s ease-out}
+  .btn.nudge{animation:nudge .38s ease-in-out 2}
+
+  .tt-b{transition:transform .16s ease,box-shadow .16s ease,filter .16s ease,border-color .16s ease}
+  .tt-b:hover{transform:translateY(-2px) scale(1.02);box-shadow:0 14px 28px -14px var(--c);filter:brightness(1.14)}
+  .tt-b.extra::after{content:"";position:absolute;inset:0;pointer-events:none;background-size:260% 100%;
+    background-image:linear-gradient(100deg,transparent 28%,rgba(255,255,255,.15) 44%,transparent 60%);
+    animation:slide 6s linear infinite}
+  .sess{transition:background .16s,transform .16s,box-shadow .16s}
+  .sess:hover{transform:translateX(3px);box-shadow:-6px 0 18px -12px var(--c)}
+  .rrow:hover{box-shadow:0 12px 26px -22px var(--c,#38d6ff)}
+  .sr-card{transition:border-color .18s,transform .18s}
+  .sr-card:hover{border-color:rgba(150,182,222,.3);transform:translateY(-2px)}
+  .quad circle{animation:pop .5s ease-out backwards;animation-delay:calc(var(--i,0)*70ms)}
+  .mk{animation:pop .5s .25s ease-out backwards}
+  .orbit-mark::after{content:"";position:absolute;top:50%;left:50%;width:4px;height:4px;margin:-2px;border-radius:50%;
+    background:var(--accent-2);box-shadow:0 0 8px var(--accent-2);transform-origin:0 0;animation:satellite 6.5s linear infinite}
+  @keyframes satellite{from{transform:rotate(0) translateX(15px)}to{transform:rotate(360deg) translateX(15px)}}
+  .orbit-mark i:first-child{animation:corePulse 3.4s ease-in-out infinite}
+  @keyframes corePulse{0%,100%{box-shadow:0 0 12px rgba(56,214,255,.6)}50%{box-shadow:0 0 22px rgba(56,214,255,1)}}
+  .live-dot{width:6px;height:6px;border-radius:50%;background:var(--low);box-shadow:0 0 8px var(--low);animation:blink 2.4s ease-in-out infinite;flex:none}
+  .step.ready{animation:fadeUp .3s ease-out backwards}
+  .flash{position:fixed;inset:0;z-index:65;pointer-events:none;opacity:0;
+    background:radial-gradient(circle at 50% 38%,rgba(56,214,255,.2),transparent 58%)}
+  .flash.go{animation:flashIn .9s ease-out}
+
+  /* ---------------- hover tip ---------------- */
+  .tip{position:fixed;z-index:78;pointer-events:none;opacity:0;transform:translateY(5px);max-width:260px;
+    border:1px solid var(--hair);border-radius:12px;padding:9px 11px;background:rgba(8,13,22,.97);
+    box-shadow:0 22px 46px -22px #000;font-size:12px;transition:opacity .14s,transform .14s}
+  .tip.on{opacity:1;transform:none}
+  .tip .ts{font:600 9px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--c,var(--accent))}
+  .tip .tn{font-weight:600;margin-top:2px}
+  .tip .tm{font-family:var(--mono);font-size:10.5px;color:var(--muted);margin-top:5px;line-height:1.65}
+
+  /* ---------------- copilot ---------------- */
+  .fab{position:fixed;right:22px;bottom:22px;z-index:72;display:inline-flex;align-items:center;height:52px;
+    border-radius:26px;overflow:hidden;padding:0;border:1px solid rgba(56,214,255,.42);color:var(--accent);cursor:pointer;
+    background:linear-gradient(140deg,rgba(56,214,255,.24),rgba(167,139,250,.24));backdrop-filter:blur(12px);
+    -webkit-backdrop-filter:blur(12px);box-shadow:0 20px 42px -20px rgba(56,214,255,.85);transition:.24s cubic-bezier(.22,.61,.36,1)}
+  .fab svg{width:52px;height:52px;flex:none;padding:14px;transition:transform .24s}
+  .fab span{max-width:0;opacity:0;overflow:hidden;white-space:nowrap;font:600 11px var(--mono);letter-spacing:.14em;text-transform:uppercase;transition:.28s}
+  .fab:hover{transform:translateY(-3px);border-color:var(--accent)}
+  .fab:hover span{max-width:130px;opacity:1;padding-right:19px}
+  .fab:hover svg{transform:rotate(-8deg) scale(1.06)}
+  .fab i.halo{position:absolute;inset:-7px;border-radius:32px;border:1px solid rgba(56,214,255,.4);animation:halo 2.8s ease-out infinite;pointer-events:none}
+  .fab.open{background:linear-gradient(140deg,rgba(56,214,255,.4),rgba(167,139,250,.4))}
+  .fab.open svg{transform:rotate(0)}
+
+  .chat{position:fixed;right:22px;bottom:86px;z-index:73;display:flex;flex-direction:column;overflow:hidden;
+    width:min(396px,calc(100vw - 28px));height:min(568px,calc(100vh - 128px));
+    border-radius:18px;border:1px solid var(--hair);background:rgba(9,14,24,.95);backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);box-shadow:0 44px 92px -34px #000;
+    opacity:0;visibility:hidden;transform:translateY(16px) scale(.985);pointer-events:none;transition:.24s cubic-bezier(.22,.61,.36,1)}
+  .chat::before{content:"";position:absolute;inset:0;pointer-events:none;
+    background:radial-gradient(120% 55% at 100% 0%,rgba(56,214,255,.15),transparent 62%)}
+  .chat.open{opacity:1;visibility:visible;transform:none;pointer-events:auto}
+  .chat-head{position:relative;display:flex;align-items:center;gap:10px;padding:11px 12px;flex:none;
+    border-bottom:1px solid var(--hair-2);background:linear-gradient(92deg,rgba(56,214,255,.11),rgba(167,139,250,.07))}
+  .bot-av{position:relative;width:30px;height:30px;flex:none;border-radius:50%;border:1px solid rgba(56,214,255,.4)}
+  .bot-av i{position:absolute;border-radius:50%}
+  .bot-av i:first-child{inset:9px;background:radial-gradient(circle at 35% 30%,#fff,var(--accent) 60%,var(--accent-2));box-shadow:0 0 12px rgba(56,214,255,.7)}
+  .bot-av i:last-child{inset:-1px;border:1px dashed rgba(167,139,250,.55);animation:spin 12s linear infinite}
+  .chat-id{flex:1;min-width:0}
+  .chat-id b{display:block;font:600 12px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+  .chat-id small{display:flex;align-items:center;gap:6px;font-size:10.5px;color:var(--muted)}
+  .chat .x{width:26px;height:26px;border-radius:8px;border:1px solid var(--hair-2);background:transparent;color:var(--muted);
+    cursor:pointer;font-size:12px;line-height:1;display:grid;place-items:center;transition:.16s;flex:none;padding:0}
+  .chat .x:hover{color:var(--accent);border-color:var(--accent)}
+  .msgs{flex:1;min-height:0;overflow-y:auto;padding:13px 12px;display:flex;flex-direction:column;gap:10px}
+  .msg{display:flex;align-items:flex-end;gap:7px;max-width:100%;animation:msgIn .3s cubic-bezier(.22,.61,.36,1)}
+  .msg.me{justify-content:flex-end}
+  .msg .av{width:17px;height:17px;flex:none;margin-bottom:3px;border-radius:50%;
+    background:radial-gradient(circle at 35% 30%,#fff,var(--accent) 62%,var(--accent-2));box-shadow:0 0 9px rgba(56,214,255,.55)}
+  .bubble{max-width:80%;border:1px solid var(--hair-2);border-radius:14px 14px 14px 5px;padding:9px 12px;
+    font-size:13.2px;line-height:1.55;background:#0d1626;word-break:break-word}
+  .msg.me .bubble{border-radius:14px 14px 5px 14px;border-color:rgba(56,214,255,.3);
+    background:linear-gradient(120deg,rgba(56,214,255,.15),rgba(167,139,250,.13))}
+  .bubble b{color:var(--ink)}
+  .bubble .n{font-family:var(--mono);color:var(--accent);font-weight:700}
+  .bubble ul{margin:7px 0 0;padding-left:15px}
+  .bubble li{margin:3px 0}
+  .bubble .go{color:var(--accent);text-decoration:underline;cursor:pointer}
+  .bubble .mini{display:block;margin-top:7px;font:500 9.5px var(--mono);letter-spacing:.1em;text-transform:uppercase;color:var(--dim)}
+  .typing .bubble{display:flex;gap:4px;align-items:center;padding:12px}
+  .typing i{width:6px;height:6px;border-radius:50%;background:var(--muted);animation:dotBounce 1s ease-in-out infinite}
+  .typing i:nth-child(2){animation-delay:.14s}
+  .typing i:nth-child(3){animation-delay:.28s}
+  .chips{display:flex;gap:6px;flex-wrap:wrap;padding:0 12px 10px;flex:none}
+  .qchip{font:600 9.5px var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);cursor:pointer;
+    border:1px solid var(--hair-2);background:rgba(150,182,222,.05);border-radius:999px;padding:6px 10px;transition:.16s}
+  .qchip:hover{color:var(--accent);border-color:rgba(56,214,255,.45);background:rgba(56,214,255,.1);transform:translateY(-1px)}
+  .chat-form{display:flex;gap:8px;padding:10px 12px;flex:none;border-top:1px solid var(--hair-2);background:rgba(6,10,18,.72)}
+  .chat-form input{flex:1;min-width:0}
+  .chat-form .send{width:42px;justify-content:center;padding:9px 0;font-size:15px}
+
+  /* ---------------- responsive ---------------- */
+  @media(max-width:1120px){
+    .app{grid-template-columns:minmax(0,1fr)}
+    .rail,.main,.content,.steps,.block,.win-row,.sub,.sub-body,.topic-row{min-width:0}
+    .rail{position:static;height:auto;border-right:none;border-bottom:1px solid var(--hair-2);flex-direction:row;
+      align-items:center;gap:16px;padding:14px 18px;overflow:visible;flex-wrap:wrap}
+    .steps{flex:1 1 120px;flex-direction:row;gap:6px;overflow-x:auto;padding-bottom:2px}
+    .step{min-width:max-content}
+    .rail-stats,.rail-foot{display:none}
+    .split{grid-template-columns:minmax(0,1fr)}
+    .content{padding:20px 16px 90px}
+    .topbar{padding:12px 16px}
+  }
+  @media(max-width:760px){
+    .win-row{grid-template-columns:66px minmax(0,1fr);grid-template-areas:"day tot" "wins wins" "add add";row-gap:8px}
+    .win-row .day{grid-area:day}.win-row .tot{grid-area:tot;text-align:right}
+    .win-row .wins{grid-area:wins}.win-row .addw{grid-area:add}
+    .sub-head{grid-template-columns:auto minmax(0,1fr) auto;grid-template-areas:"dot name chev" "cnt cnt cnt" "base base base";row-gap:8px}
+    .sub-head .dot{grid-area:dot}.sub-head .sub-name{grid-area:name}.sub-head .chev{grid-area:chev}
+    .sub-head .sub-count{grid-area:cnt}.sub-head .sub-base{grid-area:base}
+    .topic-row{grid-template-columns:20px minmax(0,1fr) 26px;grid-template-areas:"num name del" ". d ." ". c .";row-gap:6px}
+    .topic-row .tnum{grid-area:num}.topic-row .tin{grid-area:name}.topic-row .del{grid-area:del}
+    .topic-row .rg.d{grid-area:d}.topic-row .rg.c{grid-area:c}
+    .rrow{grid-template-columns:18px 8px minmax(0,1fr) auto auto;gap:8px}
+    .rrow .hide-sm{display:none}
+    .rrow .vv.hide-sm{display:none}
+    .rrow .vv{font-size:11.5px}
+    .rrow .chip{justify-self:end}
+    .rrow .bar.hide-sm{display:block;grid-column:2/-1;grid-row:2;align-self:center}
+    .page-head h1{font-size:22px}
+    .cta{flex-direction:column;align-items:stretch}
+    .cta-actions .btn{flex:1;justify-content:center}
+    .chat{left:10px;right:10px;bottom:80px;width:auto;height:min(70vh,520px)}
+    .fab{right:14px;bottom:14px}
+    .bubble{max-width:88%}
+  }
+  @media(prefers-reduced-motion:reduce){
+    *,*::before,*::after{animation:none!important;transition:none!important}
+    .view.on{animation:none}
+  }
+  @media print{
+    .rail,.topbar,.cta,.tt-bar,details.cbox>summary,.toast{display:none!important}
+    body{background:#fff;color:#000}
+    .block,.sr-card,.tile{break-inside:avoid}
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <div class="rail-brand">
+      <div class="orbit-mark" aria-hidden="true"><i></i><i></i></div>
+      <div class="rb-txt"><b>ORBIT</b><small>rule-based ai</small></div>
+    </div>
+
+    <nav class="steps" id="stepper" aria-label="Pipeline">
+      <button class="step active ready" type="button" data-go="gather" aria-current="step"><span class="n">1</span>Gather</button>
+      <button class="step" type="button" data-go="aura"><span class="n">2</span>Aura</button>
+      <button class="step" type="button" data-go="vector"><span class="n">3</span>Vector</button>
+      <button class="step" type="button" data-go="forge"><span class="n">4</span>Forge</button>
+      <button class="step" type="button" data-go="summary"><span class="n">5</span>Summary</button>
+    </nav>
+
+    <div class="rail-stats" id="rail-stats"></div>
+
+    <div class="rail-foot">
+      FORGE v2 · 60 min cap<br>
+      5 min break after a full hour<br>
+      <span id="rf-status">idle</span>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="crumb" id="crumb">Step <b>01</b> · Gather</div>
+      <div class="top-actions">
+        <button class="btn tiny ghost" id="btn-sample" type="button">Sample</button>
+        <button class="btn tiny ghost" id="btn-reset" type="button">Clear</button>
+        <button class="btn primary tiny" id="btn-run" type="button">Run ORBIT</button>
+      </div>
+    </header>
+
+    <div class="content">
+      <!-- ============ 01 GATHER ============ -->
+      <section class="view on" id="view-gather">
+        <div class="page-head">
+          <span class="eyebrow">Step 01 · Input</span>
+          <h1>Tell ORBIT about your week</h1>
+          <p>Real study windows, the topics you are revising and how the last two tests went. ORBIT scores every topic, then fits sessions into the time you actually have. Everything you type is saved in this browser.</p>
+        </div>
+
+        <div class="block">
+          <div class="block-head">
+            <div>
+              <h2>Study windows</h2>
+              <p>24-hour clock, HH:MM. Windows on the same day must not overlap. A day with no window receives no sessions.</p>
+            </div>
+            <button class="btn tiny ghost" type="button" id="btn-clear-windows">Clear windows</button>
+          </div>
+          <div class="win-table" id="days-grid"></div>
+        </div>
+
+        <div class="block">
+          <div class="block-head">
+            <div>
+              <h2>Subjects &amp; topics</h2>
+              <p>Baseline is the hours this subject normally takes you. Rate each topic 1-10 for difficulty and for how confident you feel about it.</p>
+            </div>
+            <button class="btn tiny" type="button" id="btn-add-subject">+ Subject</button>
+          </div>
+          <div id="subjects"></div>
+        </div>
+
+        <div class="block">
+          <div class="block-head">
+            <div>
+              <h2>Performance &amp; engine</h2>
+              <p>Two recent test scores set the AURA performance and trend factors; the extension adds time to every difficult subject.</p>
+            </div>
+          </div>
+          <div class="perf">
+            <div>
+              <label class="f" for="f-test1">Previous test 1 · %</label>
+              <input id="f-test1" type="number" min="0" max="100" step="1" data-bind="meta:test1">
+            </div>
+            <div>
+              <label class="f" for="f-test2">Previous test 2 · %</label>
+              <input id="f-test2" type="number" min="0" max="100" step="1" data-bind="meta:test2">
+            </div>
+            <div>
+              <label class="f" for="f-ext">Difficulty extension · hrs</label>
+              <input id="f-ext" type="number" min="0" step="0.25" data-bind="meta:extension">
+            </div>
+          </div>
+          <label class="switch" for="f-fill">
+            <input type="checkbox" id="f-fill" data-bind="meta:fillGaps">
+            <span class="track-sw" aria-hidden="true"></span>
+            <span><b>Fill spare window time</b> — a second pass puts the highest-VECTOR topics into any window minutes the first pass leaves empty, so no allocated block sits idle.</span>
+          </label>
+        </div>
+
+        <div class="cta">
+          <div class="validation" id="validation">Input looks good.</div>
+          <div class="cta-actions">
+            <button class="btn ghost" type="button" id="btn-sample-2">Load sample data</button>
+            <button class="btn primary big" type="button" id="btn-run-2">Run ORBIT</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ 02 AURA ============ -->
+      <section class="view" id="view-aura">
+        <div id="aura-body"></div>
+      </section>
+
+      <!-- ============ 03 VECTOR ============ -->
+      <section class="view" id="view-vector">
+        <div id="vector-body"></div>
+      </section>
+
+      <!-- ============ 04 FORGE ============ -->
+      <section class="view" id="view-forge">
+        <div id="forge-body"></div>
+      </section>
+
+      <!-- ============ 05 SUMMARY ============ -->
+      <section class="view" id="view-summary">
+        <div id="summary-body"></div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<div class="tip" id="tip" aria-hidden="true"></div>
+<div class="flash" id="flash" aria-hidden="true"></div>
+
+<button class="fab" id="chat-fab" type="button" aria-expanded="false" aria-controls="chat-panel" title="Ask the ORBIT copilot">
+  <i class="halo"></i>
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M20.5 11.6a8 8 0 0 1-11.8 7.1L3.5 20.5l1.9-5.1A8 8 0 1 1 20.5 11.6z"/>
+    <path d="M8.6 11.9h.01M12 11.9h.01M15.4 11.9h.01"/>
+  </svg>
+  <span>Ask ORBIT</span>
+</button>
+
+<section class="chat" id="chat-panel" role="dialog" aria-label="ORBIT copilot">
+  <header class="chat-head">
+    <span class="bot-av" aria-hidden="true"><i></i><i></i></span>
+    <div class="chat-id">
+      <b>ORBIT copilot</b>
+      <small><i class="live-dot" aria-hidden="true"></i>online · answers from your own data</small>
+    </div>
+    <button class="x" id="chat-clear" type="button" title="Clear conversation" aria-label="Clear conversation">⟲</button>
+    <button class="x" id="chat-close" type="button" title="Close" aria-label="Close chat">✕</button>
+  </header>
+  <div class="msgs" id="chat-msgs" role="log" aria-live="polite"></div>
+  <div class="chips" id="chat-chips"></div>
+  <form class="chat-form" id="chat-form" autocomplete="off">
+    <input id="chat-input" type="text" placeholder="Ask anything about your plan…" aria-label="Message the copilot">
+    <button class="btn primary send" type="submit" aria-label="Send message">→</button>
+  </form>
+</section>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+<script>
+"use strict";
+
+/* ============================================================
+   ORBIT — faithful browser port of the Python rule-based engine
+   Pipeline: GATHER → AURA → VECTOR → FORGE v2
+   ============================================================ */
+
+const DAYS = ["MONDAY","TUESDAY","WEDNESDAY","THURSDAY","FRIDAY","SATURDAY","SUNDAY"];
+
+/* FORGE parameters (identical to the Python constants) */
+const MAX_SESSION = 60;
+const MIN_SESSION = 20;
+const BREAK_TIME  = 5;
+
+const STORAGE_KEY = "orbit.state.v1";
+
+/* ---------------- state ---------------- */
+function blankTopic(){ return { name:"", difficulty:7, confidence:4 }; }
+function blankSubject(){ return { name:"", baseline:1.5, topics:[blankTopic(),blankTopic()] }; }
+
+function sampleState(){
+  return {
+    windows: {
+      MONDAY:    [{start:"17:00",end:"18:30"},{start:"20:00",end:"21:30"}],
+      TUESDAY:   [{start:"18:00",end:"19:00"}],
+      WEDNESDAY: [{start:"16:30",end:"19:00"},{start:"21:00",end:"22:00"}],
+      THURSDAY:  [{start:"17:00",end:"18:00"}],
+      FRIDAY:    [{start:"17:30",end:"20:00"}],
+      SATURDAY:  [{start:"09:00",end:"12:00"},{start:"16:00",end:"18:00"}],
+      SUNDAY:    [{start:"10:00",end:"12:30"}]
+    },
+    subjects: [
+      { name:"PHYSICS", baseline:2.5, topics:[
+        { name:"ROTATIONAL MOTION", difficulty:8, confidence:3 },
+        { name:"THERMODYNAMICS",    difficulty:7, confidence:5 },
+        { name:"WAVE OPTICS",       difficulty:6, confidence:4 }
+      ]},
+      { name:"MATHEMATICS", baseline:3, topics:[
+        { name:"INTEGRAL CALCULUS", difficulty:9, confidence:4 },
+        { name:"PROBABILITY",       difficulty:5, confidence:7 }
+      ]},
+      { name:"CHEMISTRY", baseline:1.5, topics:[
+        { name:"ELECTROCHEMISTRY",  difficulty:6, confidence:6 },
+        { name:"ORGANIC MECHANISMS",  difficulty:7, confidence:8 }
+      ]}
+    ],
+    test1: 62,
+    test2: 58,
+    extension: 0.5,
+    fillGaps: true
+  };
+}
+
+function emptyState(){
+  const windows = {};
+  DAYS.forEach(d => windows[d] = []);
+  return { windows, subjects:[blankSubject()], test1:0, test2:0, extension:0, fillGaps:true };
+}
+
+let state = loadState() || sampleState();
+let engine = null;   /* last successful run */
+
+/* ---------------- persistence ---------------- */
+function saveState(){
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch(e){}
+}
+function loadState(){
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return null;
+    const parsed = JSON.parse(raw);
+    if(!parsed || !parsed.windows || !Array.isArray(parsed.subjects)) return null;
+    DAYS.forEach(d => { if(!Array.isArray(parsed.windows[d])) parsed.windows[d] = []; });
+    return parsed;
+  } catch(e){ return null; }
+}
+
+/* ---------------- helpers ---------------- */
+const el = (tag, cls, html) => {
+  const n = document.createElement(tag);
+  if(cls) n.className = cls;
+  if(html !== undefined) n.innerHTML = html;
+  return n;
+};
+const esc = s => String(s).replace(/[&<>"']/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;" }[c]));
+
+function toMinutes(value){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(String(value || "").trim());
+  if(!m) return null;
+  const h = Number(m[1]), min = Number(m[2]);
+  if(h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+function toHHMM(mins){
+  const total = Math.floor(mins);
+  return String(Math.floor(total / 60)).padStart(2,"0") + ":" + String(total % 60).padStart(2,"0");
+}
+function hrs(mins){ return (mins / 60).toFixed(2); }
+function num(v){ const n = Number(v); return Number.isFinite(n) ? n : NaN; }
+
+/* ============================================================
+   ENGINE
+   ============================================================ */
+
+/* ---- AURA : subject-level priority ---- */
+function computeAura(input){
+  const perAvg = (input.test1 + input.test2) / 2;
+  const trend  = input.test1 - input.test2;
+
+  let performance, performanceFactor;
+  if(perAvg >= 90){ performance = "EXCELLENT";        performanceFactor = 0.8; }
+  else if(perAvg >= 75){ performance = "GOOD";        performanceFactor = 1.0; }
+  else if(perAvg >= 50){ performance = "NEEDS IMPROVEMENT"; performanceFactor = 1.2; }
+  else { performance = "CRITICAL";                    performanceFactor = 1.5; }
+
+  let trendFactor, trendStatus;
+  if(trend >= 10){ trendFactor = 0.85; trendStatus = "STRONGLY IMPROVING"; }
+  else if(trend > 0){ trendFactor = 0.95; trendStatus = "IMPROVING"; }
+  else if(trend === 0){ trendFactor = 1.0;  trendStatus = "STABLE"; }
+  else if(trend > -10){ trendFactor = 1.15; trendStatus = "DECLINING"; }
+  else { trendFactor = 1.30; trendStatus = "STRONGLY DECLINING"; }
+
+  const subjects = input.subjects.map(subject => {
+    const difficultTime  = subject.baseline + input.extension;
+    const avgDifficulty  = subject.topics.reduce((a,t) => a + t.difficulty, 0) / subject.topics.length;
+    const difficultyFactor = subject.baseline > 0
+      ? (difficultTime / subject.baseline) + (avgDifficulty / 10)
+      : 1.0 + (avgDifficulty / 10);
+    const priorityScore  = performanceFactor * trendFactor * difficultyFactor;
+    const adaptiveTime   = difficultTime * performanceFactor * trendFactor;
+    const priority = priorityScore >= 2.0 ? "CRITICAL"
+                   : priorityScore >= 1.5 ? "HIGH"
+                   : priorityScore >= 1.1 ? "MEDIUM" : "LOW";
+    return { name:subject.name, baseline:subject.baseline, difficultTime, avgDifficulty,
+             difficultyFactor, priorityScore, adaptiveTime, priority };
+  });
+
+  return { perAvg, trend, performance, performanceFactor,
+           trendFactor, trendStatus, subjects };
+}
+
+/* ---- VECTOR : topic-level priority ---- */
+function computeVector(input, aura){
+  const tasks = [];
+  input.subjects.forEach((subject, index) => {
+    const subjectPriority = aura.subjects[index].priorityScore;
+    subject.topics.forEach(topic => {
+      const weakness = (topic.difficulty / 10) * ((10 - topic.confidence) / 10);
+      const vectorScore = weakness * subjectPriority;
+      const target = vectorScore >= 0.50 ? "CRITICAL"
+                   : vectorScore >= 0.30 ? "HIGH"
+                   : vectorScore >= 0.15 ? "MEDIUM" : "LOW";
+      tasks.push({
+        subject:subject.name, topic:topic.name,
+        difficulty:topic.difficulty, confidence:topic.confidence,
+        weakness, vectorScore, target,
+        recommendedMinutes:0, remainingMinutes:0
+      });
+    });
+  });
+  return tasks;
+}
+
+/* ---- FORGE v2 : allocation ---- */
+function buildForgeTasks(tasks, aura){
+  const forged = tasks.map(t => Object.assign({}, t));
+
+  aura.subjects.forEach((subjectMeta, index) => {
+    const subjectTasks = forged.filter(t => t.subject === subjectMeta.name);
+    if(!subjectTasks.length) return;
+    const totalVector   = subjectTasks.reduce((a,t) => a + t.vectorScore, 0);
+    const subjectMinutes = aura.subjects[index].adaptiveTime * 60;
+
+    subjectTasks.forEach(task => {
+      task.recommendedMinutes = totalVector > 0
+        ? subjectMinutes * (task.vectorScore / totalVector)
+        : subjectMinutes / subjectTasks.length;
+      task.remainingMinutes = task.recommendedMinutes;
+    });
+  });
+
+  forged.sort((a,b) => b.vectorScore - a.vectorScore);
+  return forged;
+}
+
+function freeGapsIn(window, sessions){
+  const inside = sessions
+    .filter(s => s.start >= window.start && s.end <= window.end + 0.001)
+    .sort((a,b) => a.start - b.start);
+  const gaps = [];
+  let cursor = window.start;
+  inside.forEach(s => {
+    if(s.start > cursor) gaps.push({ start:cursor, end:s.start });
+    cursor = Math.max(cursor, s.end);
+  });
+  if(cursor < window.end) gaps.push({ start:cursor, end:window.end });
+  return gaps;
+}
+
+function forgeSessions(forgeTasks, windowsByDay, options){
+  const fillGaps = !options || options.fillGaps !== false;
+
+  const forgeWindows = {};
+  DAYS.forEach(day => {
+    forgeWindows[day] = windowsByDay[day]
+      .map(w => ({ start:w.start, end:w.end }))
+      .sort((a,b) => a.start - b.start);
+  });
+
+  const schedule = {};
+  DAYS.forEach(day => schedule[day] = []);
+
+  let lastSubject = "";
+
+  DAYS.forEach(day => {
+    forgeWindows[day].forEach(window => {
+      let current = window.start;
+
+      while(current < window.end){
+        const remainingWindow = window.end - current;
+        if(remainingWindow < MIN_SESSION) break;
+
+        let candidates = forgeTasks.filter(t =>
+          t.remainingMinutes >= MIN_SESSION && t.subject !== lastSubject);
+
+        if(candidates.length === 0){
+          candidates = forgeTasks.filter(t => t.remainingMinutes >= MIN_SESSION);
+        }
+        if(candidates.length === 0) break;
+
+        candidates.sort((a,b) => b.vectorScore - a.vectorScore);
+        const task = candidates[0];
+
+        let duration = Math.min(task.remainingMinutes, remainingWindow, MAX_SESSION);
+        if(duration < MIN_SESSION && task.remainingMinutes > duration) break;
+
+        schedule[day].push({
+          day, subject:task.subject, topic:task.topic,
+          start:current, end:current + duration, minutes:duration,
+          score:task.vectorScore, target:task.target, pass:1
+        });
+
+        task.remainingMinutes -= duration;
+        current += duration;
+        lastSubject = task.subject;
+
+        if(duration >= MAX_SESSION && current + BREAK_TIME <= window.end){
+          current += BREAK_TIME;
+        }
+      }
+    });
+  });
+
+  /* Second pass — spare window time is filled with a further revision pass
+     over the highest-VECTOR topics, capped at one extra pass per topic. */
+  if(fillGaps){
+    forgeTasks.forEach(t => {
+      t.extraMinutes = t.recommendedMinutes + Math.max(0, t.remainingMinutes);
+    });
+
+    DAYS.forEach(day => {
+      forgeWindows[day].forEach(window => {
+        freeGapsIn(window, schedule[day]).forEach(gap => {
+          let current = gap.start;
+
+          while(current + MIN_SESSION <= gap.end){
+            const remainingGap = gap.end - current;
+            const pool = forgeTasks.filter(t => t.extraMinutes >= MIN_SESSION);
+            if(pool.length === 0) break;
+
+            let candidates = pool.filter(t => t.subject !== lastSubject);
+            if(candidates.length === 0) candidates = pool;
+
+            candidates.sort((a,b) => b.vectorScore - a.vectorScore);
+            const task = candidates[0];
+
+            const duration = Math.min(task.extraMinutes, remainingGap, MAX_SESSION);
+            if(duration < MIN_SESSION) break;
+
+            schedule[day].push({
+              day, subject:task.subject, topic:task.topic,
+              start:current, end:current + duration, minutes:duration,
+              score:task.vectorScore, target:task.target, pass:2
+            });
+
+            task.extraMinutes -= duration;
+            current += duration;
+            lastSubject = task.subject;
+
+            if(duration >= MAX_SESSION && current + BREAK_TIME <= gap.end){
+              current += BREAK_TIME;
+            }
+          }
+        });
+      });
+    });
+
+    DAYS.forEach(day => schedule[day].sort((a,b) => a.start - b.start));
+  }
+
+  return schedule;
+}
+
+function runEngine(input){
+  const windowsByDay = {};
+  DAYS.forEach(day => {
+    windowsByDay[day] = input.windows[day]
+      .map(w => ({ start:toMinutes(w.start), end:toMinutes(w.end) }))
+      .filter(w => w.start !== null && w.end !== null)
+      .sort((a,b) => a.start - b.start);
+  });
+
+  const aura  = computeAura(input);
+  const vectorTasks = computeVector(input, aura);
+  const forgeTasks  = buildForgeTasks(vectorTasks, aura);
+  const schedule    = forgeSessions(forgeTasks, windowsByDay, { fillGaps:input.fillGaps });
+
+  let totalAvailable = 0, totalAllocated = 0, extraAllocated = 0;
+  DAYS.forEach(day => {
+    windowsByDay[day].forEach(w => totalAvailable += (w.end - w.start));
+    schedule[day].forEach(s => {
+      totalAllocated += s.minutes;
+      if(s.pass === 2) extraAllocated += s.minutes;
+    });
+  });
+  const remainingNeed = forgeTasks.reduce((a,t) => a + Math.max(0, t.remainingMinutes), 0);
+
+  return {
+    input, windowsByDay, aura, vectorTasks, forgeTasks, schedule,
+    stats:{
+      totalAvailable, totalAllocated, extraAllocated,
+      coreAllocated: totalAllocated - extraAllocated,
+      remainingTime: totalAvailable - totalAllocated,
+      remainingNeed,
+      sessions: Object.values(schedule).reduce((a,s) => a + s.length, 0),
+      extraSessions: Object.values(schedule).reduce((a,s) => a + s.filter(x => x.pass === 2).length, 0)
+    }
+  };
+}
+
+/* ============================================================
+   VALIDATION  (mirrors get_int / get_float / get_time guards)
+   ============================================================ */
+function validate(stateToCheck){
+  const errors = [];
+  const ok = { windows:{}, subjects:[] };
+
+  DAYS.forEach((day, dayIndex) => {
+    const parsed = [];
+    (stateToCheck.windows[day] || []).forEach((w, winIndex) => {
+      const start = toMinutes(w.start);
+      const end   = toMinutes(w.end);
+      if(start === null || end === null){
+        errors.push({ msg:`${day} window ${winIndex+1}: invalid time — use HH:MM (hours 00-23, minutes 00-59).`,
+                      id:`w-${dayIndex}-${winIndex}-start` });
+        return;
+      }
+      if(end <= start){
+        errors.push({ msg:`${day} window ${winIndex+1}: end time must be after start time.`,
+                      id:`w-${dayIndex}-${winIndex}-end` });
+        return;
+      }
+      const overlap = parsed.some(p => start < p.end && end > p.start);
+      if(overlap){
+        errors.push({ msg:`${day} window ${winIndex+1}: overlaps another window on the same day.`,
+                      id:`w-${dayIndex}-${winIndex}-start` });
+        return;
+      }
+      parsed.push({ start, end });
+    });
+    ok.windows[day] = parsed.map(p => ({ start:toHHMM(p.start), end:toHHMM(p.end) }));
+  });
+
+  if(!stateToCheck.subjects.length) errors.push({ msg:"At least one subject is required." });
+
+  stateToCheck.subjects.forEach((subject, sIndex) => {
+    const name = String(subject.name || "").trim().toUpperCase();
+    if(!name){
+      errors.push({ msg:`Subject ${sIndex+1}: name cannot be empty.`, id:`s-${sIndex}-name` });
+      return;
+    }
+    const baseline = num(subject.baseline);
+    if(Number.isNaN(baseline) || baseline < 0){
+      errors.push({ msg:`${name}: baseline study time must be at least 0.`, id:`s-${sIndex}-baseline` });
+      return;
+    }
+    if(!subject.topics.length){
+      errors.push({ msg:`${name}: at least one topic is required.` });
+      return;
+    }
+    const topics = [];
+    subject.topics.forEach((topic, tIndex) => {
+      const tName = String(topic.name || "").trim().toUpperCase();
+      if(!tName){
+        errors.push({ msg:`${name} topic ${tIndex+1}: name cannot be empty.`, id:`s-${sIndex}-t-${tIndex}-name` });
+        return;
+      }
+      const d = num(topic.difficulty), c = num(topic.confidence);
+      const bad = (v,label,limit) => Number.isNaN(v) || v < 1 || v > 10
+        ? (errors.push({ msg:`${name} · ${tName}: ${label} must be between 1 and 10.`,
+                        id:`s-${sIndex}-t-${tIndex}-${limit}` }), true) : false;
+      if(bad(d,"difficulty","diff") || bad(c,"confidence","conf")) return;
+      topics.push({ name:tName, difficulty:d, confidence:c });
+    });
+    if(!topics.length) return;
+    ok.subjects.push({ name, baseline, topics });
+  });
+
+  const t1 = num(stateToCheck.test1), t2 = num(stateToCheck.test2), ext = num(stateToCheck.extension);
+  if(Number.isNaN(t1) || t1 < 0 || t1 > 100) errors.push({ msg:"Previous test must be between 0 and 100.", id:"f-test1" });
+  if(Number.isNaN(t2) || t2 < 0 || t2 > 100) errors.push({ msg:"Previous test #2 must be between 0 and 100.", id:"f-test2" });
+  if(Number.isNaN(ext) || ext < 0) errors.push({ msg:"Difficulty extension must be at least 0.", id:"f-ext" });
+
+  return { errors, input: errors.length ? null : {
+    windows: ok.windows,
+    subjects: ok.subjects,
+    test1: t1, test2: t2, extension: ext,
+    fillGaps: stateToCheck.fillGaps !== false
+  }};
+}
+
+/* ============================================================
+   PALETTE + SMALL HELPERS
+   ============================================================ */
+const SUBJECT_COLORS = ["#38d6ff","#a78bfa","#2dd4bf","#ffb648","#ff5f7a","#5ce27f","#f472b6","#60a5fa"];
+function subjectColor(i){ return SUBJECT_COLORS[i % SUBJECT_COLORS.length]; }
+function targetVar(level){ return "var(--" + String(level).toLowerCase() + ")"; }
+function colorMap(){
+  const map = {};
+  engine.input.subjects.forEach((s, i) => map[s.name] = subjectColor(i));
+  return map;
+}
+function diffColor(v){ return v >= 8 ? "var(--critical)" : v >= 6 ? "var(--high)" : v >= 4 ? "var(--medium)" : "var(--low)"; }
+function confColor(v){ return v >= 7 ? "var(--low)" : v >= 5 ? "var(--medium)" : v >= 3 ? "var(--high)" : "var(--critical)"; }
+
+const daysGrid   = document.getElementById("days-grid");
+const subjectsEl = document.getElementById("subjects");
+const railStats  = document.getElementById("rail-stats");
+
+let openSubjects = null;
+let forgeMode = "grid";
+let forgeCompact = false;
+let planDirty = false;
+
+function dayMinutes(day){
+  return (state.windows[day] || []).reduce((a, w) => {
+    const s = toMinutes(w.start), e = toMinutes(w.end);
+    return (s !== null && e !== null && e > s) ? a + (e - s) : a;
+  }, 0);
+}
+function paintRange(input){
+  const min = Number(input.min), max = Number(input.max), v = Number(input.value);
+  input.style.setProperty("--p", ((v - min) / (max - min) * 100) + "%");
+}
+
+/* ============================================================
+   GATHER UI
+   ============================================================ */
+function updateRail(){
+  const avail = DAYS.reduce((a, d) => a + dayMinutes(d), 0);
+  const topics = state.subjects.reduce((a, s) => a + s.topics.length, 0);
+  let html = "";
+  html += `<div class="rs"><span>Days used</span><b>${DAYS.filter(d => (state.windows[d] || []).length).length}/7</b></div>`;
+  html += `<div class="rs"><span>Available</span><b>${hrs(avail)} h</b></div>`;
+  html += `<div class="rs"><span>Subjects</span><b>${state.subjects.length}</b></div>`;
+  html += `<div class="rs"><span>Topics</span><b>${topics}</b></div>`;
+  if(engine){
+    html += `<div class="rs"><span>Scheduled</span><b>${hrs(engine.stats.totalAllocated)} h</b></div>`;
+    html += `<div class="rs"><span>Sessions</span><b>${engine.stats.sessions}</b></div>`;
+  }
+  railStats.innerHTML = html;
+  document.getElementById("rf-status").textContent =
+    engine ? (planDirty ? "edited · re-run" : "plan forged") : "idle";
+  document.getElementById("btn-run").textContent = engine ? "Re-run ORBIT" : "Run ORBIT";
+}
+
+function renderDays(){
+  daysGrid.innerHTML = "";
+  DAYS.forEach((day, dayIndex) => {
+    const wins = state.windows[day] || [];
+    const row = el("div", "win-row");
+    row.appendChild(el("span", "day", day));
+    row.appendChild(el("span", "tot", wins.length ? hrs(dayMinutes(day)) + " h" : "—"));
+
+    const box = el("div", "wins");
+    wins.forEach((w, winIndex) => {
+      const chip = el("div", "wchip");
+      const start = el("input");
+      start.type = "time"; start.value = w.start; start.id = `w-${dayIndex}-${winIndex}-start`;
+      start.dataset.bind = `win:${dayIndex}:${winIndex}:start`;
+      const end = el("input");
+      end.type = "time"; end.value = w.end; end.id = `w-${dayIndex}-${winIndex}-end`;
+      end.dataset.bind = `win:${dayIndex}:${winIndex}:end`;
+      const kill = el("button", "btn icon del", "×");
+      kill.type = "button"; kill.title = "Remove window";
+      kill.dataset.remove = `window:${dayIndex}:${winIndex}`;
+      chip.append(start, el("span", "ar", "→"), end, kill);
+      box.appendChild(chip);
+    });
+    if(!wins.length) box.appendChild(el("span", "no-win", "no window — this day stays free"));
+    row.appendChild(box);
+
+    const add = el("button", "btn tiny addw", "+ Window");
+    add.type = "button"; add.dataset.add = `window:${dayIndex}`;
+    row.appendChild(add);
+    daysGrid.appendChild(row);
+  });
+}
+
+function renderSubjects(){
+  subjectsEl.innerHTML = "";
+  if(!openSubjects) openSubjects = new Set(state.subjects.map((_, i) => i));
+
+  state.subjects.forEach((subject, sIndex) => {
+    const card = el("div", "sub" + (openSubjects.has(sIndex) ? " open" : ""));
+    card.style.setProperty("--c", subjectColor(sIndex));
+
+    const head = el("div", "sub-head");
+    head.appendChild(el("span", "dot"));
+
+    const name = el("input");
+    name.type = "text"; name.className = "sub-name"; name.placeholder = "e.g. PHYSICS";
+    name.value = subject.name; name.id = `s-${sIndex}-name`; name.spellcheck = false;
+    name.dataset.bind = `subject:${sIndex}:name`;
+    head.appendChild(name);
+
+    const baseBox = el("div", "sub-base");
+    const baseLabel = el("label", "sr", "Baseline study time in hours");
+    baseLabel.htmlFor = `s-${sIndex}-baseline`;
+    baseBox.appendChild(baseLabel);
+    const base = el("input");
+    base.type = "number"; base.min = "0"; base.step = "0.25"; base.value = subject.baseline;
+    base.id = `s-${sIndex}-baseline`; base.dataset.bind = `subject:${sIndex}:baseline`;
+    baseBox.append(base, el("small", "", "h base"));
+    head.appendChild(baseBox);
+
+    const avg = subject.topics.length
+      ? subject.topics.reduce((a, t) => a + Number(t.difficulty || 0), 0) / subject.topics.length : 0;
+    head.appendChild(el("span", "sub-count", subject.topics.length + (subject.topics.length === 1 ? " topic · avg diff " : " topics · avg diff ") + avg.toFixed(1)));
+
+    const chev = el("button", "chev", "▾");
+    chev.type = "button"; chev.title = "Show / hide topics";
+    chev.dataset.toggle = `subject:${sIndex}`;
+    head.appendChild(chev);
+    card.appendChild(head);
+
+    const body = el("div", "sub-body");
+    subject.topics.forEach((topic, tIndex) => {
+      const row = el("div", "topic-row");
+      row.appendChild(el("span", "tnum", String(tIndex + 1).padStart(2, "0")));
+
+      const tname = el("input");
+      tname.type = "text"; tname.className = "tin"; tname.placeholder = "Topic name";
+      tname.value = topic.name; tname.id = `s-${sIndex}-t-${tIndex}-name`; tname.spellcheck = false;
+      tname.dataset.bind = `subject:${sIndex}:topic:${tIndex}:name`;
+      row.appendChild(tname);
+
+      [["difficulty", "Difficulty", "diff", topic.difficulty, diffColor],
+       ["confidence", "Confidence", "conf", topic.confidence, confColor]].forEach(([key, label, short, value, shade]) => {
+        const group = el("div", "rg " + short[0]);
+        group.style.setProperty("--c", shade(Number(value)));
+        const top = el("div", "rg-top");
+        top.appendChild(el("span", "", label + " 1-10"));
+        const out = el("b", "", Number(value).toFixed(1));
+        out.id = `r-${sIndex}-${tIndex}-${short}`;
+        top.appendChild(out);
+        group.appendChild(top);
+        const range = el("input");
+        range.type = "range"; range.min = "1"; range.max = "10"; range.step = "0.5";
+        range.value = value; range.id = `s-${sIndex}-t-${tIndex}-${short}`;
+        range.dataset.bind = `subject:${sIndex}:topic:${tIndex}:${key}`;
+        range.dataset.readout = `r-${sIndex}-${tIndex}-${short}`;
+        range.dataset.shade = short;
+        group.appendChild(range);
+        paintRange(range);
+        row.appendChild(group);
+      });
+
+      if(subject.topics.length > 1){
+        const kill = el("button", "btn icon del", "×");
+        kill.type = "button"; kill.title = "Remove topic";
+        kill.dataset.remove = `subject:${sIndex}:topic:${tIndex}`;
+        row.appendChild(kill);
+      } else {
+        row.appendChild(el("span", "del"));
+      }
+      body.appendChild(row);
+    });
+
+    const foot = el("div", "sub-foot");
+    const addTopic = el("button", "btn tiny", "+ Topic");
+    addTopic.type = "button"; addTopic.dataset.add = `topic:${sIndex}`;
+    foot.appendChild(addTopic);
+    if(state.subjects.length > 1){
+      const kill = el("button", "btn tiny ghost", "Remove subject");
+      kill.type = "button"; kill.dataset.remove = `subject:${sIndex}`;
+      foot.appendChild(kill);
+    }
+    body.appendChild(foot);
+    card.appendChild(body);
+    subjectsEl.appendChild(card);
+  });
+}
+
+function renderMeta(){
+  document.getElementById("f-test1").value = state.test1;
+  document.getElementById("f-test2").value = state.test2;
+  document.getElementById("f-ext").value   = state.extension;
+  document.getElementById("f-fill").checked = state.fillGaps !== false;
+}
+
+function refreshValidation(){
+  const box = document.getElementById("validation");
+  const { errors } = validate(state);
+  const noWindows = !DAYS.some(d => (state.windows[d] || []).length);
+  const bad = errors.length > 0 || noWindows;
+  box.classList.toggle("bad", bad);
+  if(errors.length){
+    box.textContent = (errors.length === 1 ? "1 problem: " : errors.length + " problems: ") + errors[0].msg;
+  } else if(noWindows){
+    box.textContent = "No study windows yet — add at least one or the plan will be empty.";
+  } else {
+    const avail = DAYS.reduce((a, d) => a + dayMinutes(d), 0);
+    box.textContent = `Ready to forge · ${hrs(avail)} hrs available across ${DAYS.filter(d => (state.windows[d] || []).length).length} days.`;
+  }
+}
+
+function sync(){
+  saveState();
+  updateRail();
+  refreshValidation();
+}
+
+function toggleSubject(index){
+  if(openSubjects.has(index)) openSubjects.delete(index); else openSubjects.add(index);
+  const card = subjectsEl.children[index];
+  if(card) card.classList.toggle("open", openSubjects.has(index));
+}
+
+function bindGatherEvents(){
+  document.body.addEventListener("input", ev => {
+    const node = ev.target;
+    if(!node.dataset || !node.dataset.bind) return;
+    const p = node.dataset.bind.split(":");
+
+    if(p[0] === "meta"){
+      state[p[1]] = node.type === "checkbox" ? node.checked : (node.value === "" ? "" : num(node.value));
+    }
+
+    if(p[0] === "win"){
+      const day = DAYS[Number(p[1])];
+      const win = (state.windows[day] || [])[Number(p[2])];
+      if(win){
+        win[p[3]] = node.value;
+        const row = node.closest(".win-row");
+        if(row) row.querySelector(".tot").textContent = winsLabel(day);
+      }
+    }
+
+    if(p[0] === "subject"){
+      const subject = state.subjects[Number(p[1])];
+      if(subject){
+        if(p[2] === "name") subject.name = node.value.toUpperCase();
+        else if(p[2] === "baseline") subject.baseline = node.value === "" ? "" : num(node.value);
+        else if(p[2] === "topic"){
+          const topic = subject.topics[Number(p[3])];
+          if(topic){
+            if(p[4] === "name") topic.name = node.value.toUpperCase();
+            else {
+              const value = num(node.value);
+              topic[p[4]] = value;
+              const readout = document.getElementById(node.dataset.readout);
+              if(readout) readout.textContent = value.toFixed(1);
+              const group = node.closest(".rg");
+              if(group) group.style.setProperty("--c", node.dataset.shade === "diff" ? diffColor(value) : confColor(value));
+              paintRange(node);
+            }
+          }
+        }
+      }
+    }
+    planDirty = !!engine;
+    sync();
+  });
+
+  document.body.addEventListener("click", ev => {
+    const add = ev.target.closest("[data-add]");
+    if(add){
+      const p = add.dataset.add.split(":");
+      if(p[0] === "window"){
+        const day = DAYS[Number(p[1])];
+        const list = state.windows[day];
+        const last = list[list.length - 1];
+        const start = last ? Math.min(toMinutes(last.end) + 30, 23 * 60) : 17 * 60;
+        list.push({ start:toHHMM(start), end:toHHMM(Math.min(start + 90, 23 * 60 + 59)) });
+        renderDays();
+      } else if(p[0] === "topic"){
+        state.subjects[Number(p[1])].topics.push(blankTopic());
+        openSubjects.add(Number(p[1]));
+        renderSubjects();
+      }
+      planDirty = !!engine;
+      sync();
+      return;
+    }
+
+    const kill = ev.target.closest("[data-remove]");
+    if(kill){
+      const p = kill.dataset.remove.split(":");
+      if(p[0] === "window"){
+        state.windows[DAYS[Number(p[1])]].splice(Number(p[2]), 1);
+        renderDays();
+      } else if(p[0] === "subject" && p.length === 2){
+        state.subjects.splice(Number(p[1]), 1);
+        openSubjects = new Set(state.subjects.map((_, i) => i));
+        renderSubjects();
+      } else if(p[0] === "subject" && p[2] === "topic"){
+        state.subjects[Number(p[1])].topics.splice(Number(p[3]), 1);
+        renderSubjects();
+      }
+      planDirty = !!engine;
+      sync();
+      return;
+    }
+
+    const tog = ev.target.closest("[data-toggle]");
+    if(tog) toggleSubject(Number(tog.dataset.toggle.split(":")[1]));
+  });
+
+  document.getElementById("btn-add-subject").addEventListener("click", () => {
+    state.subjects.push(blankSubject());
+    openSubjects.add(state.subjects.length - 1);
+    renderSubjects(); sync();
+  });
+
+  document.getElementById("btn-clear-windows").addEventListener("click", () => {
+    DAYS.forEach(d => state.windows[d] = []);
+    renderDays(); sync();
+    toast("All study windows cleared.");
+  });
+
+  document.addEventListener("click", ev => {
+    const mode = ev.target.closest("[data-mode]");
+    if(mode){
+      forgeMode = mode.dataset.mode;
+      renderForge();
+      return;
+    }
+    if(ev.target.closest("[data-compact]")){
+      forgeCompact = !forgeCompact;
+      renderForge();
+    }
+  });
+}
+
+function winsLabel(day){
+  const wins = state.windows[day] || [];
+  return wins.length ? hrs(dayMinutes(day)) + " h" : "—";
+}
+
+/* ============================================================
+   RESULT UI — shared bits
+   ============================================================ */
+function lockedTile(name){
+  return `<div class="lock">Run <b>ORBIT</b> from step 01 to populate ${name}.</div>`;
+}
+function chip(level){ return `<span class="chip c-${level}">${level}</span>`; }
+function tile(k, v, s, pct, color){
+  const style = `--w:${Math.max(0, Math.min(100, pct || 0)).toFixed(1)}%${color ? ";" + "--c:" + color : ""}`;
+  return `<div class="tile" style="${style}"><div class="k">${esc(k)}</div><div class="v">${v}</div>`
+       + (s ? `<div class="s">${esc(s)}</div>` : "") + `</div>`;
+}
+
+/* ---- AURA ---- */
+function renderAura(){
+  const host = document.getElementById("aura-body");
+  if(!engine){ host.innerHTML = lockedTile("AURA"); return; }
+  const aura = engine.aura;
+  const perfBand = `<div class="band-wrap">
+      <div class="band-lab"><span>Performance band · average of two tests</span><span>${aura.perAvg.toFixed(1)}%</span></div>
+      <div class="band-rel">
+        <div class="band">
+          <i style="--c:var(--critical);flex:50">critical</i>
+          <i style="--c:var(--high);flex:25">needs improvement</i>
+          <i style="--c:var(--medium);flex:15">good</i>
+          <i style="--c:var(--low);flex:10">excellent</i>
+        </div>
+        <span class="mk" style="left:${Math.max(0, Math.min(100, aura.perAvg))}%" data-l="${aura.perAvg.toFixed(1)}% · ${aura.performance.toLowerCase()}"></span>
+      </div>
+    </div>`;
+
+  const trendPos = ((Math.max(-20, Math.min(20, aura.trend)) + 20) / 40) * 100;
+  const trendBand = `<div class="band-wrap">
+      <div class="band-lab"><span>Trend · test 1 → test 2</span><span>${aura.trendStatus}</span></div>
+      <div class="band-rel">
+        <div class="band">
+          <i style="--c:var(--critical);flex:25">strongly declining</i>
+          <i style="--c:var(--high);flex:25">declining</i>
+          <i style="--c:var(--medium);flex:25">improving</i>
+          <i style="--c:var(--low);flex:25">strongly improving</i>
+        </div>
+        <span class="mk" style="left:${trendPos}%" data-l="${(aura.trend >= 0 ? "+" : "") + aura.trend.toFixed(1)}% · factor ${aura.trendFactor.toFixed(2)}"></span>
+      </div>
+    </div>`;
+
+  let html = `
+    <div class="page-head">
+      <span class="eyebrow">Step 02 · Adaptive Roadmap Analysis</span>
+      <h1>AURA — how much weight each subject carries</h1>
+      <p>Two global factors, performance and trend, are multiplied with a per-subject difficulty factor to produce a priority score and an adaptive time budget.</p>
+    </div>
+    <div class="block">
+      <div class="block-head"><div><h2>Global factors</h2>
+        <p>Performance factor <b>${aura.performanceFactor.toFixed(2)}</b> · trend factor <b>${aura.trendFactor.toFixed(2)}</b>.</p></div></div>
+      ${perfBand}${trendBand}
+      <div class="tiles">
+        ${tile("Performance", aura.performanceFactor.toFixed(2) + "×", aura.performance)}
+        ${tile("Trend", aura.trendFactor.toFixed(2) + "×", aura.trendStatus)}
+        ${tile("Budget", engine.input.subjects.reduce((a, s) => a + s.baseline, 0).toFixed(2) + " h", "sum of baselines")}
+        ${tile("Extension", "+" + engine.input.extension.toFixed(2) + " h", "added to every subject")}
+        ${tile("Subjects", aura.subjects.length, "weighted by priority")}
+      </div>
+    </div>
+    <div class="block">
+      <div class="block-head"><div><h2>Subject priority</h2>
+        <p>Adaptive time = (baseline + extension) × performance × trend. That budget is what FORGE spreads across the subject's topics.</p></div></div>`;
+
+  aura.subjects.forEach((m, i) => {
+    const c = subjectColor(i);
+    const pct = Math.min(100, m.priorityScore / 3 * 100);
+    html += `<div class="sr-card" style="--c:${c}">
+      <div class="sr-top"><span class="sr-name">${esc(m.name)}</span>${chip(m.priority)}</div>
+      <div class="chain">
+        <span>perf<b>${aura.performanceFactor.toFixed(2)}</b></span><em>×</em>
+        <span>trend<b>${aura.trendFactor.toFixed(2)}</b></span><em>×</em>
+        <span>difficulty<b>${m.difficultyFactor.toFixed(2)}</b></span><em>=</em>
+        <span>priority<b style="color:${c}">${m.priorityScore.toFixed(2)}</b></span>
+      </div>
+      <div class="bar"><i style="width:${pct}%;--c:${c}"></i></div>
+      <div class="chain" style="margin-top:12px">
+        <span>baseline<b>${m.baseline.toFixed(2)} h</b></span><em>+</em>
+        <span>extension<b>${engine.input.extension.toFixed(2)} h</b></span><em>=</em>
+        <span>difficult time<b>${m.difficultTime.toFixed(2)} h</b></span><em>×</em>
+        <span>perf · trend<b>${(aura.performanceFactor * aura.trendFactor).toFixed(2)}</b></span><em>=</em>
+        <span>adaptive budget<b style="color:${c}">${m.adaptiveTime.toFixed(2)} h</b></span>
+      </div>
+      <div class="note" style="margin-top:10px">difficulty factor ${m.difficultyFactor.toFixed(3)} = difficult time ÷ baseline + avg difficulty (${m.avgDifficulty.toFixed(1)}) ÷ 10</div>
+    </div>`;
+  });
+
+  html += `</div>`;
+  host.innerHTML = html;
+}
+
+/* ---- VECTOR ---- */
+function renderVector(){
+  const host = document.getElementById("vector-body");
+  if(!engine){ host.innerHTML = lockedTile("VECTOR"); return; }
+  const tasks = engine.vectorTasks;
+  const colors = colorMap();
+  const counts = { CRITICAL:0, HIGH:0, MEDIUM:0, LOW:0 };
+  tasks.forEach(t => counts[t.target]++);
+  const peak = tasks.reduce((a, t) => Math.max(a, t.vectorScore), 0);
+
+  const W = 340, H = 252, L = 36, R = 14, T = 16, B = 30;
+  const px = d => L + (d / 10) * (W - L - R);
+  const py = c => H - B - (c / 10) * (H - T - B);
+
+  let svg = `<svg class="quad" viewBox="0 0 ${W} ${H}" role="img" aria-label="Difficulty against confidence chart">
+    <line class="ax" x1="${L}" y1="${py(5)}" x2="${W - R}" y2="${py(5)}"></line>
+    <line class="ax" x1="${px(5)}" y1="${T}" x2="${px(5)}" y2="${H - B}"></line>
+    <rect x="${px(5)}" y="${T}" width="${W - R - px(5)}" height="${py(5) - T}" fill="rgba(255,182,72,.05)"></rect>
+    <rect x="${px(5)}" y="${py(5)}" width="${W - R - px(5)}" height="${H - B - py(5)}" fill="rgba(255,95,122,.09)"></rect>
+    <text class="zn" x="${px(7.5)}" y="${T + 10}" text-anchor="middle">hard · sure</text>
+    <text class="zn" x="${px(7.5)}" y="${H - B - 8}" text-anchor="middle">hard · shaky</text>
+    <text class="lb" x="${L}" y="${T - 4}">confidence</text>
+    <text class="lb" x="${L - 22}" y="${py(10) - 6}">10</text>
+    <text class="lb" x="${L - 20}" y="${py(0) + 4}">0</text>
+    <text class="lb" x="${W - R - 46}" y="${H - B + 16}">difficulty →</text>
+    <line class="ax" x1="${L}" y1="${H - B}" x2="${W - R}" y2="${H - B}"></line>
+    <line class="ax" x1="${L}" y1="${T}" x2="${L}" y2="${H - B}"></line>`;
+
+  tasks.slice().sort((a, b) => a.vectorScore - b.vectorScore).forEach(t => {
+    const c = colors[t.subject] || "var(--accent)";
+    const r = 4 + (peak ? (t.vectorScore / peak) * 11 : 0);
+    svg += `<circle cx="${px(t.difficulty).toFixed(1)}" cy="${py(t.confidence).toFixed(1)}" r="${r.toFixed(1)}"
+      fill="${c}" fill-opacity=".22" stroke="${c}" stroke-width="1.4"><title>${esc(t.topic)} · ${esc(t.subject)}
+difficulty ${t.difficulty} · confidence ${t.confidence}
+VECTOR ${t.vectorScore.toFixed(3)} · ${t.target}</title></circle>`;
+  });
+  svg += `</svg>`;
+
+  let rows = "";
+  tasks.slice().sort((a, b) => b.vectorScore - a.vectorScore).forEach((t, i) => {
+    const c = colors[t.subject] || "#38d6ff";
+    rows += `<div class="rrow" style="--c:${c}">
+      <span class="rk">${String(i + 1).padStart(2, "0")}</span>
+      <span class="cd"></span>
+      <span class="nm"><b>${esc(t.topic)}</b><small>${esc(t.subject)}</small></span>
+      <span class="vv hide-sm">${t.difficulty.toFixed(1)}<small>difficulty</small></span>
+      <span class="vv hide-sm">${t.confidence.toFixed(1)}<small>confidence</small></span>
+      <span class="vv hide-sm">${t.weakness.toFixed(2)}<small>weakness</small></span>
+      <span class="vv" style="color:${targetVar(t.target)}">${t.vectorScore.toFixed(3)}<small>vector · ${t.target}</small></span>
+    </div>`;
+  });
+
+  host.innerHTML = `
+    <div class="page-head">
+      <span class="eyebrow">Step 03 · Topic ranking</span>
+      <h1>VECTOR — the topics that cost you most</h1>
+      <p>Weakness is difficulty × the inverse of confidence, scaled by the subject's AURA priority. Bubbles in the lower-right quadrant earn the most revision minutes.</p>
+    </div>
+    <div class="block">
+      <div class="block-head"><div><h2>Target spread</h2>
+        <p>Thresholds: CRITICAL ≥ 0.50 · HIGH ≥ 0.30 · MEDIUM ≥ 0.15 · LOW below that.</p></div></div>
+      <div class="tiles">
+        ${tile("Topics", tasks.length, "ranked by VECTOR")}
+        ${tile("Critical", counts.CRITICAL, "need the deepest work", tasks.length ? counts.CRITICAL / tasks.length * 100 : 0, "var(--critical)")}
+        ${tile("High", counts.HIGH, "priority revision", tasks.length ? counts.HIGH / tasks.length * 100 : 0, "var(--high)")}
+        ${tile("Medium & low", counts.MEDIUM + counts.LOW, "lighter touches", tasks.length ? (counts.MEDIUM + counts.LOW) / tasks.length * 100 : 0, "var(--medium)")}
+        ${tile("Peak score", peak.toFixed(3), "hardest weakness", 100, "var(--accent-2)")}
+      </div>
+    </div>
+    <div class="block">
+      <div class="block-head"><div><h2>Difficulty × confidence</h2>
+        <p>Hover a bubble for its numbers. Colour marks the subject.</p></div></div>
+      <div class="split">
+        ${svg}
+        <div class="rlist">${rows}</div>
+      </div>
+    </div>`;
+}
+
+/* ---- FORGE ---- */
+function daySegments(day){
+  const wins = engine.windowsByDay[day];
+  const sessions = engine.schedule[day];
+  const segs = [];
+  let total = 0;
+  wins.forEach(w => {
+    total += w.end - w.start;
+    const inside = sessions
+      .filter(s => s.start >= w.start && s.end <= w.end + 0.001)
+      .sort((a, b) => a.start - b.start);
+    let cursor = w.start;
+    inside.forEach(s => {
+      if(s.start > cursor) segs.push({ type:"gap", minutes:s.start - cursor });
+      segs.push({ type:"session", minutes:s.minutes, session:s });
+      cursor = s.end;
+    });
+    if(cursor < w.end) segs.push({ type:"gap", minutes:w.end - cursor });
+  });
+  return { segs, total };
+}
+
+function forgeMetrics(){
+  const s = engine.stats;
+  const util = s.totalAvailable ? s.totalAllocated / s.totalAvailable * 100 : 0;
+  return { s, util };
+}
+
+function subjectLoad(){
+  const totals = {};
+  DAYS.forEach(d => engine.schedule[d].forEach(se => {
+    totals[se.subject] = (totals[se.subject] || 0) + se.minutes;
+  }));
+  return totals;
+}
+
+function renderForge(){
+  const host = document.getElementById("forge-body");
+  if(!engine){ host.innerHTML = lockedTile("FORGE"); return; }
+  const { s, util } = forgeMetrics();
+  const colors = colorMap();
+  const load = subjectLoad();
+  const totalLoad = Object.values(load).reduce((a, b) => a + b, 0) || 1;
+
+  let bar = "", legend = "";
+  Object.keys(load).forEach(subject => {
+    const c = colors[subject] || "#38d6ff";
+    bar += `<div style="flex:${load[subject]};background:${c}" title="${esc(subject)} · ${hrs(load[subject])} hrs"></div>`;
+    legend += `<span class="lg" style="--c:${c}"><i></i>${esc(subject)} ${hrs(load[subject])} h</span>`;
+  });
+
+  let html = `
+    <div class="page-head">
+      <span class="eyebrow">Step 04 · FORGE v2</span>
+      <h1>The forged week</h1>
+      <p>Sessions cap at ${MAX_SESSION} min, refuse anything under ${MIN_SESSION} min, take a ${BREAK_TIME} min break after a full hour and avoid two blocks of the same subject back to back.</p>
+    </div>
+    <div class="block">
+      <div class="block-head">
+        <div><h2>Weekly plan</h2>
+          <p>${s.sessions} sessions · ${hrs(s.totalAllocated)} of ${hrs(s.totalAvailable)} hrs used (${util.toFixed(1)}%).
+          ${s.extraSessions ? `Dashed blocks are the extra revision pass (${s.extraSessions} sessions, ${hrs(s.extraAllocated)} hrs).` : "Fill spare window time is off, so only core demand is scheduled."}</p></div>
+        <div class="tt-tools">
+          <button class="btn tiny${forgeCompact ? " on" : ""}" type="button" data-compact="1" title="Fold away hours that no window covers">Compact hours</button>
+          <div class="seg-ctl" role="group" aria-label="Plan view">
+            <button type="button" class="${forgeMode === "grid" ? "on" : ""}" data-mode="grid">Timeline</button>
+            <button type="button" class="${forgeMode === "list" ? "on" : ""}" data-mode="list">List</button>
+          </div>
+        </div>
+      </div>
+      <div class="tt-bar">
+        <div class="load-bar" title="Minutes per subject">${bar}</div>
+        <div class="legend">${legend}</div>
+      </div>`;
+
+  html += forgeMode === "grid" ? forgeTimeline(colors) : forgeList(colors);
+  html += `</div>`;
+  host.innerHTML = html;
+}
+
+function forgeTimeline(colors){
+  const all = [];
+  DAYS.forEach(d => engine.windowsByDay[d].forEach(w => all.push(w.start, w.end)));
+  if(!all.length) return `<div class="tt-scroll"><div class="tt"><div class="tt-empty">No study windows to draw.</div></div></div>`;
+
+  const startH = Math.floor(Math.min(...all) / 60);
+  const endH   = Math.ceil(Math.max(...all) / 60);
+  const hasHour = h => DAYS.some(d => engine.windowsByDay[d].some(w => w.start < (h + 1) * 60 && w.end > h * 60));
+
+  const hours = [], jumps = [];
+  let skipped = false;
+  for(let h = startH; h < endH; h++){
+    if(forgeCompact && !hasHour(h)){ skipped = true; continue; }
+    if(skipped){ jumps.push(hours.length); skipped = false; }
+    hours.push(h);
+  }
+
+  const height = hours.length * 54;
+  const pos = m => {
+    const i = hours.indexOf(Math.floor(m / 60));
+    return i < 0 ? height : i * 54 + (m % 60) / 60 * 54;
+  };
+  const jumpMarks = jumps.map(j => `<div class="tt-jump" style="top:${j * 54}px"></div>`).join("");
+
+  let gut = `<div class="tt-gut" style="height:${height}px">`;
+  hours.forEach((h, i) => {
+    gut += `<i style="top:${i * 54}px${i === 0 ? ";transform:translateY(2px)" : ""}">${String(h % 24).padStart(2, "0")}:00</i>`;
+  });
+  gut += `<i style="top:${height}px;transform:translateY(-100%)">${String(endH % 24).padStart(2, "0")}:00</i>`;
+  gut += `</div>`;
+
+  let head = `<div class="tt-h">Time<span>${forgeCompact ? "compact" : "24 h"}</span></div>`;
+  let cols = "";
+  DAYS.forEach(day => {
+    const sessions = engine.schedule[day];
+    const mins = sessions.reduce((a, x) => a + x.minutes, 0);
+    head += `<div class="tt-h">${day.slice(0, 3)}<span>${sessions.length ? hrs(mins) + " h · " + sessions.length : "free"}</span></div>`;
+
+    let inner = jumpMarks + engine.windowsByDay[day].map(w =>
+      `<div class="tt-win" style="top:${pos(w.start)}px;height:${pos(w.end) - pos(w.start)}px" title="Study window ${toHHMM(w.start)}-${toHHMM(w.end)} · ${hrs(w.end - w.start)} hrs"></div>`).join("");
+
+    engine.windowsByDay[day].forEach(w => {
+      const inside = sessions.filter(x => x.start >= w.start && x.end <= w.end + 0.001).sort((a, b) => a.start - b.start);
+      let cursor = w.start;
+      inside.forEach(se => {
+        if(se.start - cursor > 0 && se.start - cursor <= BREAK_TIME){
+          inner += `<div class="tt-brk" style="top:${pos(cursor)}px;height:${pos(se.start) - pos(cursor)}px" title="Break ${Math.round(se.start - cursor)} min"></div>`;
+        }
+        cursor = se.end;
+      });
+    });
+
+    sessions.slice().sort((a, b) => a.start - b.start).forEach(se => {
+      const h = pos(se.end) - pos(se.start);
+      const c = colors[se.subject] || "#38d6ff";
+      const tip = esc(se.subject) + "|" + esc(se.topic) + "|"
+        + toHHMM(se.start) + "–" + toHHMM(se.end) + " · " + Math.round(se.minutes) + " min|"
+        + "vector " + se.score.toFixed(3) + " · " + se.target + (se.pass === 2 ? " · extra pass" : "");
+      inner += `<div class="tt-b${se.pass === 2 ? " extra" : ""}${h < 28 ? " xs" : h < 44 ? " sm" : ""}" style="top:${pos(se.start)}px;height:${h - 2}px;--c:${c}"
+        data-tip="${tip}" aria-label="${tip.replace(/\|/g, ", ")}">
+        <div class="s">${esc(se.subject)}</div>
+        <div class="t">${esc(se.topic)}</div>
+        <div class="m">${Math.round(se.minutes)} min · ${se.target}</div>
+      </div>`;
+    });
+
+    cols += `<div class="tt-col" style="height:${height}px">${inner}</div>`;
+  });
+
+  return `<div class="tt-scroll"><div class="tt" style="--hh:54px">${head}${gut}${cols}</div></div>`;
+}
+
+function forgeList(colors){
+  let html = `<div class="days-grid">`;
+  DAYS.forEach(day => {
+    const sessions = engine.schedule[day];
+    const mins = sessions.reduce((a, x) => a + x.minutes, 0);
+    const { segs, total } = daySegments(day);
+    const track = segs.map(seg => {
+      if(seg.type === "gap"){
+        const cls = seg.minutes <= BREAK_TIME ? "seg-break" : "seg-free";
+        return `<div class="${cls}" style="flex:${seg.minutes}" title="${seg.minutes <= BREAK_TIME ? "Break" : "Free"} ${Math.round(seg.minutes)} min"></div>`;
+      }
+      const extra = seg.session.pass === 2 ? " seg-extra" : "";
+      return `<div class="${extra}" style="flex:${seg.minutes};background:${colors[seg.session.subject] || "#38d6ff"}"
+        title="${esc(seg.session.subject)} · ${esc(seg.session.topic)} ${toHHMM(seg.session.start)}-${toHHMM(seg.session.end)}"></div>`;
+    }).join("");
+
+    html += `<div class="day-col">
+      <div class="hd"><span class="d">${day.slice(0, 3)}</span><span class="h">${sessions.length ? hrs(mins) + " h · " + sessions.length : "free"}</span></div>
+      <div class="track">${total ? track : '<div class="seg-free" style="flex:1"></div>'}</div>`;
+    if(!sessions.length){
+      html += `<div class="empty">${total ? "Window open — no topic fit here." : "No study window this day."}</div>`;
+    } else {
+      sessions.slice().sort((a, b) => a.start - b.start).forEach(se => {
+        const c = colors[se.subject] || "#38d6ff";
+        html += `<div class="sess${se.pass === 2 ? " extra" : ""}" style="--c:${c}">
+          <div class="time">${toHHMM(se.start)}<br>${toHHMM(se.end)}</div>
+          <div class="body">
+            <div class="subj">${esc(se.subject)}${se.pass === 2 ? '<span class="tag">extra pass</span>' : ""}</div>
+            <div class="topic">${esc(se.topic)}</div>
+            <div class="dur">${Math.round(se.minutes)} min · vector ${se.score.toFixed(2)} · <b style="color:${targetVar(se.target)}">${se.target}</b></div>
+          </div>
+        </div>`;
+      });
+    }
+    html += `</div>`;
+  });
+  return html + `</div>`;
+}
+
+/* ---- SUMMARY ---- */
+function renderSummary(){
+  const host = document.getElementById("summary-body");
+  if(!engine){ host.innerHTML = lockedTile("the summary"); return; }
+  const { s, util } = forgeMetrics();
+  const aura = engine.aura;
+
+  const unscheduled = engine.forgeTasks
+    .filter(t => t.remainingMinutes > 0.5)
+    .sort((a, b) => b.remainingMinutes - a.remainingMinutes);
+
+  const dayRows = DAYS.map((day, i) => {
+    const mins = engine.schedule[day].reduce((a, x) => a + x.minutes, 0);
+    const avail = engine.windowsByDay[day].reduce((a, w) => a + (w.end - w.start), 0);
+    const pct = avail ? mins / avail * 100 : 0;
+    const n = engine.schedule[day].length;
+    const c = avail ? (pct >= 80 ? "var(--low)" : pct >= 40 ? "var(--accent)" : "var(--high)") : "rgba(150,182,222,.25)";
+    return `<div class="rrow" style="--c:${c}">
+      <span class="rk">${String(i + 1).padStart(2, "0")}</span>
+      <span class="cd"></span>
+      <span class="nm"><b>${day}</b>
+        <small>${avail ? hrs(mins) + " of " + hrs(avail) + " hrs · " : ""}${n} session${n === 1 ? "" : "s"}${engine.schedule[day].some(x => x.pass === 2) ? " · extra pass" : ""}</small></span>
+      <span class="vv hide-sm">${engine.windowsByDay[day].length}<small>windows</small></span>
+      <span class="bar hide-sm" style="align-self:center"><i style="width:${pct}%;--c:${c}"></i></span>
+      <span class="vv">${pct.toFixed(0)}%<small>filled</small></span>
+      <span class="vv">${avail ? hrs(avail - mins) + " h" : "—"}<small>idle</small></span>
+    </div>`;
+  }).join("");
+
+  host.innerHTML = `
+    <div class="page-head">
+      <span class="eyebrow">Step 05 · Report</span>
+      <h1>Plan status: FORGED</h1>
+      <p>Subjects analysed ${engine.input.subjects.length} · topics ${engine.vectorTasks.length} · performance ${aura.performance} · trend ${aura.trendStatus} · engine FORGE v2.</p>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><div><h2>Statistics</h2>
+        <p>${s.extraSessions ? `Core demand took ${hrs(s.coreAllocated)} hrs and the extra pass recovered ${hrs(s.extraAllocated)} hrs of otherwise idle window time.` : `Core demand took ${hrs(s.coreAllocated)} hrs. Enable “fill spare window time” in step 01 to use the rest.`}</p></div></div>
+      <div class="tiles">
+        ${tile("Available", hrs(s.totalAvailable) + " h", "inside your windows")}
+        ${tile("Allocated", hrs(s.totalAllocated) + " h", s.sessions + " sessions", util, "var(--accent)")}
+        ${tile("Utilisation", util.toFixed(1) + "%", "window time used", util, util >= 80 ? "var(--low)" : "var(--high)")}
+        ${tile("Free", hrs(s.remainingTime) + " h", "left inside windows", s.totalAvailable ? s.remainingTime / s.totalAvailable * 100 : 0, "var(--accent-2)")}
+        ${tile("Extra pass", hrs(s.extraAllocated) + " h", s.extraSessions + " recovered sessions", s.totalAllocated ? s.extraAllocated / s.totalAllocated * 100 : 0, "var(--medium)")}
+        ${tile("Unmet demand", hrs(s.remainingNeed) + " h", unscheduled.length ? unscheduled.length + " topics still hungry" : "every topic covered", s.totalAllocated + s.remainingNeed ? s.remainingNeed / (s.totalAllocated + s.remainingNeed) * 100 : 0, s.remainingNeed > 0.5 ? "var(--critical)" : "var(--low)")}
+      </div>
+    </div>
+
+    <div class="block">
+      <div class="block-head"><div><h2>Load per day</h2><p>How much of each day's window time the engine could fill.</p></div></div>
+      <div class="rlist">${dayRows}</div>
+    </div>
+
+    ${unscheduled.length ? `<div class="block">
+      <div class="block-head"><div><h2>What did not fit</h2>
+        <p>Your windows cannot absorb the full AURA budget. Add time on a lighter day, or lower a baseline in step 01.</p></div></div>
+      <div class="rlist">${unscheduled.map(t => `<div class="rrow" style="--c:${colorMap()[t.subject] || "#38d6ff"}">
+        <span class="rk">!</span><span class="cd"></span>
+        <span class="nm"><b>${esc(t.topic)}</b><small>${esc(t.subject)}</small></span>
+        <span class="vv hide-sm">${t.vectorScore.toFixed(3)}<small>vector</small></span>
+        <span class="vv hide-sm">${hrs(t.recommendedMinutes)} h<small>budget</small></span>
+        <span class="vv">${hrs(t.remainingMinutes)} h<small>unmet</small></span>
+        <span>${chip(t.target)}</span>
+      </div>`).join("")}</div>
+    </div>` : ""}
+
+    <div class="block">
+      <div class="block-head"><div><h2>Console report</h2>
+        <p>The exact text the original rule-based program prints — copy it or save it as a file.</p></div>
+        <div class="cta-actions">
+          <button class="btn tiny" type="button" id="btn-copy">Copy</button>
+          <button class="btn tiny" type="button" id="btn-download">Download .txt</button>
+          <button class="btn tiny ghost" type="button" id="btn-print">Print</button>
+        </div>
+      </div>
+      <details class="cbox" open><summary>ORBIT console output</summary>
+        <pre class="console" id="console-out"></pre>
+      </details>
+    </div>`;
+
+  document.getElementById("console-out").textContent = buildConsole();
+  document.getElementById("btn-copy").addEventListener("click", copyConsole);
+  document.getElementById("btn-download").addEventListener("click", downloadConsole);
+  document.getElementById("btn-print").addEventListener("click", () => window.print());
+}
+/* ---------------- console renderer (ASCII, like the Python prints)
+   Box art uses +/-/| so it aligns in every monospace font. ---------------- */
+const BOX_W = 62;
+function boxTop(){ return "+" + "=".repeat(BOX_W) + "+"; }
+function boxBottom(){ return "+" + "=".repeat(BOX_W) + "+"; }
+function boxLine(text){
+  const inner = " " + text + " ";
+  if(inner.length >= BOX_W) return "|" + inner.slice(0, BOX_W) + "|";
+  const left = Math.floor((BOX_W - inner.length) / 2);
+  return "|" + " ".repeat(left) + inner + " ".repeat(BOX_W - inner.length - left) + "|";
+}
+function boxRaw(text){
+  const inner = " " + text + " ";
+  return "|" + inner.slice(0, BOX_W).padEnd(BOX_W) + "|";
+}
+function rule(title){
+  return "-".repeat(62) + "\n" + " " + title + "\n" + "-".repeat(62);
+}
+
+function buildConsole(){
+  const aura = engine.aura, s = engine.stats;
+  const L = [];
+  L.push(boxTop(), boxLine("O R B I T"), boxLine("OPTIMISED REVISION BASED"),
+         boxLine("INTELLIGENT TIMETABLE"), boxLine(""), boxLine("RULE-BASED AI SYSTEM"), boxBottom(), "");
+
+  L.push(rule("STUDY WINDOWS"));
+  DAYS.forEach(day => {
+    const wins = engine.windowsByDay[day];
+    L.push(day + ": " + (wins.length ? wins.map(w => toHHMM(w.start) + " -> " + toHHMM(w.end)).join(", ") : "none"));
+  });
+  L.push("");
+
+  L.push(rule("PERFORMANCE"));
+  L.push("Previous Test        : " + engine.input.test1.toFixed(2) + "%");
+  L.push("Previous Test #2     : " + engine.input.test2.toFixed(2) + "%");
+  L.push("Average              : " + aura.perAvg.toFixed(2) + "%");
+  L.push("Performance          : " + aura.performance);
+  L.push("Trend                : " + aura.trendStatus);
+  L.push("Change               : " + (aura.trend >= 0 ? "+" : "") + aura.trend.toFixed(2) + "%");
+  L.push("");
+
+  L.push(boxTop(), boxLine("A U R A   F A C T O R"), boxLine("ADAPTIVE ROADMAP ANALYSIS"), boxBottom());
+  aura.subjects.forEach(m => {
+    L.push("");
+    L.push(m.name);
+    L.push("  Difficulty factor  : " + m.difficultyFactor.toFixed(3));
+    L.push("  Priority score     : " + m.priorityScore.toFixed(3));
+    L.push("  Adaptive time      : " + m.adaptiveTime.toFixed(2) + " hrs");
+    L.push("  Priority           : " + m.priority);
+  });
+  L.push("");
+
+  L.push(boxTop(), boxLine("V E C T O R"), boxLine("CRITICAL TOPIC OPTIMIZATION RANKING"), boxBottom());
+  engine.vectorTasks.forEach(t => {
+    L.push("");
+    L.push("  " + t.topic + "  [" + t.subject + "]");
+    L.push("    Difficulty   : " + t.difficulty.toFixed(1) + "/10");
+    L.push("    Confidence   : " + t.confidence.toFixed(1) + "/10");
+    L.push("    Weakness     : " + t.weakness.toFixed(2));
+    L.push("    VECTOR Score : " + t.vectorScore.toFixed(2));
+    L.push("    TARGET       : " + t.target);
+  });
+  L.push("");
+
+  L.push(rule("F O R G E D   P L A N"));
+  DAYS.forEach(day => {
+    L.push("");
+    L.push("  " + day);
+    L.push("  " + "-".repeat(58));
+    if(!engine.schedule[day].length){
+      L.push("  No study session allocated.");
+    } else {
+      engine.schedule[day].forEach(se => {
+        L.push("  " + toHHMM(se.start) + " -> " + toHHMM(se.end) + " | " + se.subject + " - " + se.topic +
+               " | " + se.target + (se.pass === 2 ? "  *" : ""));
+      });
+    }
+  });
+  if(s.extraSessions){
+    L.push("");
+    L.push("  * extra revision pass - spare window time filled with the highest-VECTOR topics");
+  }
+  L.push("");
+
+  L.push(rule("FORGE STATISTICS"));
+  L.push("Available time     : " + hrs(s.totalAvailable) + " hrs");
+  L.push("Allocated time     : " + hrs(s.totalAllocated) + " hrs");
+  L.push("  core demand      : " + hrs(s.coreAllocated) + " hrs");
+  L.push("  extra revision   : " + hrs(s.extraAllocated) + " hrs (" + s.extraSessions + " sessions)");
+  L.push("Free time remaining: " + hrs(s.remainingTime) + " hrs");
+  L.push("Unscheduled demand : " + hrs(s.remainingNeed) + " hrs");
+  L.push("");
+  L.push(boxTop(),
+    boxRaw("  O R B I T   C O M P L E T E"),
+    boxRaw(""),
+    boxRaw("  Subjects Analysed : " + engine.input.subjects.length),
+    boxRaw("  Average Score     : " + aura.perAvg.toFixed(2) + "%"),
+    boxRaw("  Performance       : " + aura.performance),
+    boxRaw("  Trend             : " + aura.trendStatus),
+    boxRaw("  Scheduling Engine : FORGE v2"),
+    boxRaw("  Plan Status       : FORGED"),
+    boxRaw(""),
+    boxRaw("  SYSTEM STATUS: ONLINE"),
+    boxBottom());
+  return L.join("\n");
+}
+
+function copyConsole(){
+  const text = buildConsole();
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(text).then(() => toast("Console output copied.", true), () => toast("Clipboard blocked by the browser."));
+  } else {
+    const ta = el("textarea"); ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand("copy"); toast("Console output copied.", true); } catch(e){ toast("Copy is unavailable here."); }
+    ta.remove();
+  }
+}
+function downloadConsole(){
+  const blob = new Blob([buildConsole()], { type:"text/plain;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = el("a"); a.href = url; a.download = "ORBIT-FORGED-PLAN.txt";
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1500);
+  toast("Downloaded ORBIT-FORGED-PLAN.txt", true);
+}
+
+/* ============================================================
+   NAVIGATION
+   ============================================================ */
+const CRUMBS = {
+  gather:["01", "Gather"], aura:["02", "Aura"], vector:["03", "Vector"],
+  forge:["04", "Forge"], summary:["05", "Report"]
+};
+
+function renderStep(name){
+  if(name === "aura") renderAura();
+  else if(name === "vector") renderVector();
+  else if(name === "forge") renderForge();
+  else if(name === "summary") renderSummary();
+}
+
+function showStep(name){
+  document.querySelectorAll("section.view").forEach(v => v.classList.toggle("on", v.id === "view-" + name));
+  document.querySelectorAll(".step").forEach(s => {
+    const on = s.dataset.go === name;
+    s.classList.toggle("active", on);
+    if(on) s.setAttribute("aria-current", "step"); else s.removeAttribute("aria-current");
+  });
+  const crumb = CRUMBS[name] || CRUMBS.gather;
+  document.getElementById("crumb").innerHTML = "Step <b>" + crumb[0] + "</b> · " + crumb[1];
+  renderStep(name);
+  animateView(name);
+  window.scrollTo({ top:0, behavior:"smooth" });
+}
+
+document.getElementById("stepper").addEventListener("click", ev => {
+  const step = ev.target.closest(".step");
+  if(!step || !step.classList.contains("ready")) return;
+  if(step.dataset.go !== "gather" && !engine){ toast("Run the engine first."); return; }
+  showStep(step.dataset.go);
+});
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+let toastTimer;
+function toast(message, ok){
+  const t = document.getElementById("toast");
+  t.textContent = message;
+  t.classList.toggle("ok", !!ok);
+  t.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("show"), 3600);
+}
+
+/* ============================================================
+   RUN
+   ============================================================ */
+function clearInvalidMarks(){
+  document.querySelectorAll(".invalid").forEach(n => n.classList.remove("invalid"));
+}
+
+function runOrbit(){
+  clearInvalidMarks();
+  const { errors, input } = validate(state);
+  if(errors.length){
+    errors.slice(0, 6).forEach(err => {
+      if(err.id){
+        const node = document.getElementById(err.id);
+        if(node) node.classList.add("invalid");
+      }
+    });
+    showStep("gather");
+    toast((errors.length === 1 ? "1 problem: " : errors.length + " problems. First: ") + errors[0].msg);
+    return;
+  }
+
+  engine = runEngine(input);
+  planDirty = false;
+  document.querySelectorAll(".step").forEach(s => s.classList.add("ready"));
+  const s = engine.stats;
+  updateRail();
+  showStep("forge");
+  flashScreen();
+
+  toast(`FORGE v2 complete — ${s.sessions} sessions · ${hrs(s.totalAllocated)} hrs scheduled.`, true);
+  if(s.remainingNeed > 0.5){
+    setTimeout(() => toast(`Heads up: ${hrs(s.remainingNeed)} hrs of demand did not fit in your windows.`, false), 3800);
+  }
+}
+
+function resetResults(){
+  engine = null;
+  planDirty = false;
+  document.querySelectorAll(".step").forEach(s => { if(s.dataset.go !== "gather") s.classList.remove("ready"); });
+  ["aura", "vector", "forge", "summary"].forEach(renderStep);
+  updateRail();
+}
+
+function loadStateIntoUI(){
+  openSubjects = new Set(state.subjects.map((_, i) => i));
+  renderDays();
+  renderSubjects();
+  renderMeta();
+  sync();
+}
+
+document.getElementById("btn-run").addEventListener("click", runOrbit);
+document.getElementById("btn-run-2").addEventListener("click", runOrbit);
+
+document.getElementById("btn-sample").addEventListener("click", () => {
+  state = sampleState();
+  resetResults(); loadStateIntoUI(); showStep("gather");
+  toast("Sample student data loaded.", true);
+});
+document.getElementById("btn-sample-2").addEventListener("click", () => {
+  state = sampleState();
+  resetResults(); loadStateIntoUI(); showStep("gather");
+  toast("Sample student data loaded.", true);
+});
+document.getElementById("btn-reset").addEventListener("click", () => {
+  state = emptyState();
+  resetResults(); loadStateIntoUI(); showStep("gather");
+  toast("Cleared — enter your own data.");
+});
+
+/* ============================================================
+   MOTION
+   ============================================================ */
+const reduceMotion = !!(window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches);
+
+function flashScreen(){
+  if(reduceMotion) return;
+  const f = document.getElementById("flash");
+  f.classList.remove("go");
+  void f.offsetWidth;
+  f.classList.add("go");
+}
+
+function staggerIn(view){
+  view.querySelectorAll(".tiles,.rlist,.days-grid,.win-table,#subjects,.perf,.split").forEach(g => {
+    Array.prototype.forEach.call(g.children, (c, i) => c.style.setProperty("--i", String(i)));
+  });
+  view.querySelectorAll(".tt-col").forEach(col => {
+    col.querySelectorAll(".tt-b").forEach((b, i) => b.style.setProperty("--i", String(i)));
+  });
+  view.querySelectorAll(".quad circle").forEach((c, i) => c.style.setProperty("--i", String(i)));
+}
+
+function growBars(view){
+  const jobs = [];
+  view.querySelectorAll(".tile").forEach(t => {
+    const w = t.style.getPropertyValue("--w");
+    if(w) jobs.push([t, "--w", w]);
+  });
+  view.querySelectorAll(".bar i").forEach(b => {
+    if(b.style.width) jobs.push([b, "width", b.style.width]);
+  });
+  jobs.forEach(j => j[0].style.setProperty(j[1], "0%"));
+  requestAnimationFrame(() => requestAnimationFrame(() => {
+    jobs.forEach(j => j[0].style.setProperty(j[1], j[2]));
+  }));
+}
+
+function countUp(node){
+  const raw = node.textContent.trim();
+  const m = /^(-?\d[\d,]*(?:\.\d+)?)(\s*\S*)$/.exec(raw);
+  if(!m) return;
+  const target = Number(m[1].replace(/,/g, ""));
+  if(!Number.isFinite(target) || target === 0) return;
+  const dec = (m[1].split(".")[1] || "").length;
+  const tail = m[2] || "";
+  const t0 = performance.now();
+  const step = now => {
+    const k = Math.min(1, (now - t0) / 640);
+    const e = 1 - Math.pow(1 - k, 3);
+    node.textContent = (target * e).toFixed(dec) + tail;
+    if(k < 1) requestAnimationFrame(step); else node.textContent = raw;
+  };
+  requestAnimationFrame(step);
+}
+
+function animateView(name){
+  const view = document.getElementById("view-" + name);
+  if(!view || reduceMotion) return;
+  view.classList.remove("anim");
+  staggerIn(view);
+  growBars(view);
+  void view.offsetWidth;
+  view.classList.add("anim");
+  view.querySelectorAll(".tile .v").forEach(countUp);
+}
+
+/* ============================================================
+   HOVER TIP
+   ============================================================ */
+const tipEl = document.getElementById("tip");
+let tipTarget = null;
+
+function hideTip(){ tipTarget = null; tipEl.classList.remove("on"); }
+function moveTip(ev){
+  const r = tipEl.getBoundingClientRect();
+  let x = ev.clientX + 16, y = ev.clientY + 18;
+  if(x + r.width > window.innerWidth - 10) x = ev.clientX - r.width - 16;
+  if(y + r.height > window.innerHeight - 10) y = ev.clientY - r.height - 18;
+  tipEl.style.left = Math.max(10, x) + "px";
+  tipEl.style.top = Math.max(10, y) + "px";
+}
+document.addEventListener("mouseover", ev => {
+  if(!ev.target || !ev.target.closest) return;
+  const node = ev.target.closest("[data-tip]");
+  if(!node || node === tipTarget) return;
+  tipTarget = node;
+  const lines = node.dataset.tip.split("|");
+  tipEl.style.setProperty("--c", (getComputedStyle(node).getPropertyValue("--c") || "var(--accent)").trim());
+  tipEl.innerHTML = `<div class="ts">${lines[0] || ""}</div>`
+    + (lines[1] ? `<div class="tn">${lines[1]}</div>` : "")
+    + (lines.length > 2 ? `<div class="tm">${lines.slice(2).join("<br>")}</div>` : "");
+  tipEl.classList.add("on");
+  moveTip(ev);
+});
+document.addEventListener("mousemove", ev => { if(tipTarget) moveTip(ev); });
+document.addEventListener("mouseout", ev => {
+  if(!tipTarget) return;
+  if(ev.target !== tipTarget && !tipTarget.contains(ev.target)) return;
+  if(ev.relatedTarget && tipTarget.contains(ev.relatedTarget)) return;
+  hideTip();
+});
+window.addEventListener("scroll", hideTip, true);
+
+/* ============================================================
+   COPILOT — local assistant, nothing leaves this file
+   ============================================================ */
+const CHAT_KEY = "orbit.chat.v1";
+const chatPanel = document.getElementById("chat-panel");
+const chatMsgs  = document.getElementById("chat-msgs");
+const chatChips = document.getElementById("chat-chips");
+const chatInput = document.getElementById("chat-input");
+const chatFab   = document.getElementById("chat-fab");
+const DEFAULT_CHIPS = ["What is weakest?", "Explain my plan", "Give me a tip", "Run the engine"];
+let chatLog = [], chatBusy = false, recalled = "";
+
+const nb = v => `<span class="n">${v}</span>`;
+const sb = v => `<b>${v}</b>`;
+const ul = arr => `<ul>${arr.map(x => `<li>${x}</li>`).join("")}</ul>`;
+
+function loadChat(){
+  try{
+    const raw = localStorage.getItem(CHAT_KEY);
+    const arr = raw ? JSON.parse(raw) : null;
+    return Array.isArray(arr) ? arr.filter(m => m && m.html && /^(bot|me)$/.test(m.who)) : [];
+  }catch(e){ return []; }
+}
+function saveChat(){
+  try{ localStorage.setItem(CHAT_KEY, JSON.stringify(chatLog.slice(-40))); }catch(e){}
+}
+function scrollChat(){ chatMsgs.scrollTop = chatMsgs.scrollHeight; }
+function paintMsgs(){
+  chatMsgs.innerHTML = chatLog.map(m =>
+    `<div class="msg ${m.who}">${m.who === "bot" ? '<span class="av" aria-hidden="true"></span>' : ""}<div class="bubble">${m.html}</div></div>`
+  ).join("");
+  scrollChat();
+}
+function addMsg(who, html){
+  chatLog.push({ who, html });
+  if(chatLog.length > 60) chatLog = chatLog.slice(-60);
+  paintMsgs();
+  saveChat();
+}
+function setChips(list){
+  const items = (list && list.length ? list : DEFAULT_CHIPS).slice(0, 4);
+  chatChips.innerHTML = items.map(c => `<button class="qchip" type="button" data-q="${esc(c)}">${esc(c)}</button>`).join("");
+}
+function typingNode(){
+  const n = document.createElement("div");
+  n.className = "msg bot typing";
+  n.innerHTML = '<span class="av" aria-hidden="true"></span><span class="bubble"><i></i><i></i><i></i></span>';
+  chatMsgs.appendChild(n);
+  scrollChat();
+  return n;
+}
+function helloHtml(){
+  const f = facts();
+  return `I read only what is on this page — no network, no keys. You have ${nb(f.subjects)} subjects, ${nb(f.topics)} topics and ${nb(hrs(f.avail))} hrs of windows.`
+    + (engine ? ` Last forge: ${nb(engine.stats.sessions)} sessions, ${nb(hrs(engine.stats.totalAllocated))} hrs.`
+              : ` Nothing forged yet — say ${sb("run the engine")}.`)
+    + `<span class="mini">Try “add 2 hours on Saturday” or “why is integral calculus first?”</span>`;
+}
+function openChat(){
+  if(chatLog.length === 1 && chatLog[0].hello){ chatLog[0].html = helloHtml(); paintMsgs(); saveChat(); }
+  chatPanel.classList.add("open");
+  chatFab.classList.add("open");
+  chatFab.setAttribute("aria-expanded", "true");
+  setTimeout(() => chatInput.focus(), 220);
+}
+function closeChat(){
+  chatPanel.classList.remove("open");
+  chatFab.classList.remove("open");
+  chatFab.setAttribute("aria-expanded", "false");
+}
+function send(raw){
+  const text = String(raw == null ? chatInput.value : raw).trim();
+  if(!text || chatBusy) return;
+  addMsg("me", esc(text));
+  chatInput.value = "";
+  chatBusy = true;
+  let res;
+  try{ res = answer(text); }
+  catch(err){ res = { html:`That one broke my parser: ${esc(String(err.message || err))}.` }; }
+  const t = typingNode();
+  const wait = reduceMotion ? 30 : 240 + Math.min(620, res.html.length * 1.1);
+  setTimeout(() => {
+    t.remove();
+    addMsg("bot", res.html);
+    setChips(res.chips);
+    chatBusy = false;
+    chatInput.focus();
+  }, wait);
+}
+
+/* ---- shared helpers for answers ---- */
+function facts(){
+  const avail = DAYS.reduce((a, d) => a + dayMinutes(d), 0);
+  return {
+    avail,
+    subjects: state.subjects.length,
+    topics: state.subjects.reduce((a, s) => a + s.topics.length, 0)
+  };
+}
+function utilPct(s){ return s && s.totalAvailable ? (s.totalAllocated / s.totalAvailable * 100) : 0; }
+function lightestDay(){
+  let best = DAYS[0], low = Infinity;
+  DAYS.forEach(d => { const m = dayMinutes(d); if(m < low){ low = m; best = d; } });
+  return best;
+}
+function normTxt(s){ return String(s).toLowerCase().replace(/[^a-z0-9 ]/g, "").trim(); }
+function findSubject(q){
+  const n = normTxt(q);
+  return state.subjects.find(s => s.name && n.includes(normTxt(s.name))) || null;
+}
+function findTopic(q){
+  const pool = engine ? engine.forgeTasks : [];
+  const n = normTxt(q);
+  if(!n) return null;
+  return pool.find(t => normTxt(t.topic) === n)
+      || pool.find(t => n.includes(normTxt(t.topic)))
+      || pool.find(t => normTxt(t.topic).includes(n) && n.length > 3)
+      || null;
+}
+function findDay(q){
+  const n = q.toLowerCase();
+  return DAYS.find(d => n.includes(d.toLowerCase())) || DAYS.find(d => n.includes(d.slice(0, 3).toLowerCase())) || null;
+}
+function needRun(){
+  return { html:`Nothing is forged yet, so I have no plan to talk about. Say ${sb("run the engine")}.`,
+           chips:["Run the engine", "Load sample data", "Explain ORBIT"] };
+}
+function topicLine(t){
+  return `${sb(t.topic)} (${esc(t.subject)}) — vector ${nb(t.vectorScore.toFixed(3))}, ${nb(t.target.toLowerCase())}, `
+       + `difficulty ${nb(t.difficulty)}/10, confidence ${nb(t.confidence)}/10, budget ${nb(hrs(t.recommendedMinutes))} hrs`;
+}
+function applyEdit(note){
+  planDirty = !!engine;
+  renderDays(); renderSubjects(); renderMeta(); sync();
+  const { errors } = validate(state);
+  if(errors.length){
+    return { html: note + ` But the form now has ${nb(errors.length)} problem(s):` + ul(errors.slice(0, 3).map(e => esc(e.msg))),
+             chips:["What's wrong?", "Load sample data"] };
+  }
+  runOrbit();
+  const s = engine.stats;
+  return { html: note + ` Re-forged: ${nb(s.sessions)} sessions · ${nb(hrs(s.totalAllocated))} of ${nb(hrs(s.totalAvailable))} hrs (${nb(utilPct(s).toFixed(0))}%).`,
+           chips:["What didn't fit?", "What is weakest?", "Give me a tip"] };
+}
+function parseClock(str){
+  const m = /^(\d{1,2})[:.](\d{2})$/.exec(String(str).trim());
+  if(!m) return null;
+  const h = Number(m[1]), mi = Number(m[2]);
+  if(h > 23 || mi > 59) return null;
+  return { mins: h * 60 + mi, text: String(h).padStart(2, "0") + ":" + String(mi).padStart(2, "0") };
+}
+
+/* ---- answer builders ---- */
+function cmdRun(){
+  const { errors } = validate(state);
+  if(errors.length){
+    showStep("gather");
+    return { html:`I cannot forge yet — ${nb(errors.length)} thing(s) need attention:` + ul(errors.slice(0, 4).map(e => esc(e.msg))),
+             chips:["What's wrong?", "Load sample data"] };
+  }
+  runOrbit();
+  const s = engine.stats;
+  return { html:`Forged ${nb(s.sessions)} sessions · ${nb(hrs(s.totalAllocated))} of ${nb(hrs(s.totalAvailable))} hrs (${nb(utilPct(s).toFixed(1))}%).`
+    + (s.remainingNeed > 0.5 ? ` ${nb(hrs(s.remainingNeed))} hrs of demand did not fit.` : ` Every topic's budget is covered.`),
+    chips:["What didn't fit?", "Show the timetable", "What is weakest?"] };
+}
+function cmdSummary(){
+  if(!engine) return needRun();
+  const s = engine.stats, a = engine.aura;
+  const top = engine.vectorTasks.slice().sort((x, y) => y.vectorScore - x.vectorScore)[0];
+  const subs = a.subjects.slice().sort((x, y) => y.priorityScore - x.priorityScore);
+  return { html:`Your week in one breath:` + ul([
+    `${nb(hrs(s.totalAvailable))} hrs of windows → ${nb(hrs(s.totalAllocated))} hrs scheduled (${nb(utilPct(s).toFixed(1))}%) in ${nb(s.sessions)} sessions.`,
+    `Performance ${sb(a.performance.toLowerCase())} · trend ${sb(a.trendStatus.toLowerCase())}.`,
+    subs.length ? `Heaviest subject ${sb(subs[0].name)} at priority ${nb(subs[0].priorityScore.toFixed(2))}.` : `No subjects yet.`,
+    top ? `Top topic ${sb(top.topic)} — vector ${nb(top.vectorScore.toFixed(3))}.` : `No topics yet.`,
+    s.extraSessions ? `Extra pass recovered ${nb(hrs(s.extraAllocated))} hrs in ${nb(s.extraSessions)} idle-gap sessions.` : `Extra pass is off — spare window time stays unused.`,
+    s.remainingNeed > 0.5 ? `Still short ${nb(hrs(s.remainingNeed))} hrs.` : `Nothing left unscheduled.`
+  ]), chips:["Show the timetable", "What didn't fit?", "Give me a tip"] };
+}
+function cmdGo(q){
+  const map = { gather:"gather", input:"gather", data:"gather", aura:"aura", priority:"aura", vector:"vector",
+    ranking:"vector", forge:"forge", timetable:"forge", plan:"forge", report:"summary", summary:"summary" };
+  const key = Object.keys(map).find(k => new RegExp("\\b" + k + "\\b").test(q));
+  if(!key) return null;
+  if(map[key] !== "gather" && !engine) return needRun();
+  showStep(map[key]);
+  return { html:`Opened ${sb(CRUMBS[map[key]][1])}.`, chips:["Explain my plan", "What is weakest?", "Give me a tip"] };
+}
+function cmdView(q){
+  if(!engine) return needRun();
+  if(/\bcompact\b/.test(q)){ forgeCompact = !forgeCompact; if(forgeCompact) forgeMode = "grid"; }
+  else if(/\blist\b/.test(q)) forgeMode = "list";
+  else if(/\b(timeline|grid)\b/.test(q)) forgeMode = "grid";
+  else return null;
+  showStep("forge");
+  return { html:`${sb(forgeMode === "grid" ? "Timeline" : "List")} view${forgeCompact ? ", hours compacted" : ""}.`,
+    chips:["Compact hours", "List view", "Show the report"] };
+}
+function cmdExplainConsole(){
+  if(!engine) return needRun();
+  showStep("summary");
+  const det = document.querySelector("#summary-body details.cbox");
+  if(det) det.open = true;
+  return { html:`Console panel opened on the report step — byte-for-byte what the original program printed. The buttons there copy, download or print it.`,
+    chips:["Copy console", "Download the report", "Give me a tip"] };
+}
+function cmdExport(q){
+  if(!engine) return needRun();
+  showStep("summary");
+  try{
+    if(/\bprint\b/.test(q)){ window.print(); return { html:`Print dialog opened — the report step drops the chrome automatically.`, chips:["Copy console"] }; }
+    if(/\b(download|save|export)\b/.test(q)){ downloadConsole(); return { html:`Downloading the console report as a .txt file.`, chips:["Print it", "Explain my plan"] }; }
+    copyConsole();
+    return { html:`Console report copied to your clipboard.`, chips:["Download the report", "Print it"] };
+  }catch(e){
+    return { html:`The browser blocked that: ${esc(String(e.message || e))}. The report step has the same buttons.`, chips:["Show the report"] };
+  }
+}
+function cmdAddWindow(q){
+  const day = findDay(q);
+  const range = /(\d{1,2}[:.]\d{2})\s*(?:-|–|to|until|till)\s*(\d{1,2}[:.]\d{2})/.exec(q);
+  if(day && range){
+    const a = parseClock(range[1]), b = parseClock(range[2]);
+    if(!a || !b || b.mins <= a.mins) return { html:`I could not read that range. Try ${sb("add window saturday 09:00-11:00")}.`, chips:["What are my windows?"] };
+    const wins = state.windows[day] = state.windows[day] || [];
+    wins.push({ start:a.text, end:b.text });
+    wins.sort((x, y) => toMinutes(x.start) - toMinutes(y.start));
+    return applyEdit(`Added ${nb(hrs(b.mins - a.mins))} hrs on ${sb(day.slice(0, 3))} (${a.text}–${b.text}).`);
+  }
+  const h = /(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)\b/.exec(q);
+  const mn = /(\d+)\s*(?:min|mins|minutes)\b/.exec(q);
+  const mins = h ? Math.round(Number(h[1]) * 60) : mn ? Number(mn[1]) : 60;
+  if(mins < MIN_SESSION) return { html:`FORGE refuses anything under ${nb(MIN_SESSION)} min — ask for more.`, chips:["Add 2 hours on saturday"] };
+  const target = day || lightestDay();
+  const wins = (state.windows[target] || []).slice().sort((x, y) => toMinutes(x.start) - toMinutes(y.start));
+  const last = wins[wins.length - 1];
+  let start = last ? toMinutes(last.end) : 17 * 60;
+  if(start + mins > 1439) start = 1439 - mins;
+  state.windows[target] = wins.concat([{ start:toHHMM(start), end:toHHMM(start + mins) }]);
+  return applyEdit(`Added ${nb(hrs(mins))} hrs on ${sb(target.slice(0, 3))} (${toHHMM(start)}–${toHHMM(start + mins)})${day ? "" : " — your lightest day"}.`);
+}
+function cmdBaseline(q){
+  const nm = /\bbaseline\b[^0-9]*(\d+(?:\.\d+)?)|(\d+(?:\.\d+)?)\s*(?:h|hr|hrs|hour|hours)?\s*(?:of\s*)?baseline/.exec(q);
+  const subj = findSubject(q);
+  if(!nm) return { html:`How many hours? Try ${sb("set physics baseline to 3")}.`, chips:["Explain AURA"] };
+  if(!subj) return { html:`Which subject? ${state.subjects.length ? "You have " + esc(state.subjects.map(s => s.name).join(", ")) + "." : "You have no subjects yet."}`, chips:["What subjects do I have?"] };
+  subj.baseline = Number(nm[1] || nm[2]);
+  return applyEdit(`Set ${sb(subj.name)} baseline to ${nb(subj.baseline)} hrs.`);
+}
+function findTopicInState(q){
+  const n = normTxt(q);
+  for(const s of state.subjects) for(const t of s.topics){
+    const tn = normTxt(t.name);
+    if(tn && n.includes(tn)) return t;
+  }
+  return null;
+}
+function cmdSetTopic(q){
+  const field = /\bconfidence\b/.test(q) ? "confidence" : /\bdifficulty\b/.test(q) ? "difficulty" : null;
+  if(!field) return null;
+  const m = new RegExp("\\b" + field + "\\b[^0-9]*(\\d{1,2})|(\\d{1,2})\\b[^a-z]{0,10}\\b" + field + "\\b").exec(q);
+  if(!m) return { html:`Give me a value from 1 to 10, e.g. ${sb("set wave optics confidence to 6")}.`, chips:["What is weakest?"] };
+  const topic = findTopicInState(q);
+  if(!topic) return { html:`I could not match that to one of your topics.`, chips:["What topics do I have?"] };
+  topic[field] = Math.max(1, Math.min(10, Number(m[1] || m[2])));
+  return applyEdit(`Set ${sb(topic.name)} ${field} to ${nb(topic[field])}/10.`);
+}
+function cmdTests(q){
+  const m = /(\d{1,3})\s*(?:and|,|&|\/|-|to)\s*(\d{1,3})/.exec(q);
+  if(!m) return { html:`Two numbers, e.g. ${sb("my tests were 62 and 58")}.`, chips:["Explain AURA"] };
+  state.test1 = Number(m[1]); state.test2 = Number(m[2]);
+  return applyEdit(`Recorded test 1 = ${nb(state.test1)}, test 2 = ${nb(state.test2)}.`);
+}
+function cmdExtension(q){
+  const parts = q.split(/\bextension\b/);
+  const m = /(\d+(?:\.\d+)?)/.exec(parts[1] || "") || /(\d+(?:\.\d+)?)/.exec(parts[0] || "");
+  if(!m) return { html:`How much extra pressure? e.g. ${sb("set extension to 1 hour")}.`, chips:["Explain AURA"] };
+  state.extension = Number(m[1]);
+  return applyEdit(`Extension set to ${nb(state.extension)} hrs.`);
+}
+function cmdFill(q){
+  const off = /\b(off|stop|disable|avoid|don'?t|no)\b/.test(q);
+  state.fillGaps = !off;
+  return applyEdit(`Spare-window filling is now ${sb(off ? "off" : "on")}.`);
+}
+function cmdWeakest(q){
+  if(!engine) return needRun();
+  const n = /\b(\d+)\b/.exec(q);
+  const count = n ? Math.max(1, Math.min(10, Number(n[1]))) : 3;
+  const t = engine.forgeTasks.slice().sort((a, b) => b.vectorScore - a.vectorScore).slice(0, count);
+  if(!t.length) return { html:`No topics ranked yet.`, chips:["Run the engine"] };
+  return { html:`Ranked by VECTOR — these earn the most minutes:` + ul(t.map(topicLine)),
+    chips:["Why is " + t[0].topic.toLowerCase() + " first?", "What didn't fit?", "Show the timetable"] };
+}
+function cmdEasiest(){
+  if(!engine) return needRun();
+  const t = engine.forgeTasks.slice().sort((a, b) => a.vectorScore - b.vectorScore).slice(0, 3);
+  if(!t.length) return { html:`No topics ranked yet.`, chips:["Run the engine"] };
+  return { html:`Safest right now:` + ul(t.map(topicLine)), chips:["What is weakest?", "Explain VECTOR"] };
+}
+function cmdWhy(q){
+  if(!engine) return needRun();
+  const t = findTopic(q.replace(/^.*\bwhy\b/, ""));
+  if(!t) return { html:`Which topic? Name it, e.g. ${sb("why is integral calculus first?")}`, chips:["What is weakest?"] };
+  const subj = engine.aura.subjects.find(s => s.name === t.subject) || {};
+  return { html:`${sb(t.topic)} sits where it does because:` + ul([
+    `weakness = (${t.difficulty} ÷ 10) × ((10 − ${t.confidence}) ÷ 10) = ${nb(t.weakness.toFixed(3))}`,
+    `× ${esc(t.subject)} priority ${nb((subj.priorityScore || 0).toFixed(2))} = vector ${nb(t.vectorScore.toFixed(3))} → ${sb(t.target.toLowerCase())}`,
+    `Share of the ${esc(t.subject)} budget: ${nb(hrs(t.recommendedMinutes))} hrs, of which ${nb(hrs(t.recommendedMinutes - t.remainingMinutes))} were scheduled.`
+  ]), chips:["What didn't fit?", "Give me a tip"] };
+}
+function cmdUnmet(){
+  if(!engine) return needRun();
+  const uns = engine.forgeTasks.filter(t => t.remainingMinutes > 0.5).sort((a, b) => b.remainingMinutes - a.remainingMinutes);
+  if(!uns.length) return { html:`Everything fitted — the whole AURA budget landed inside your windows.`, chips:["Give me a tip", "Show the timetable"] };
+  return { html:`${nb(hrs(engine.stats.remainingNeed))} hrs of demand never found a slot:`
+    + ul(uns.slice(0, 4).map(t => `${sb(t.topic)} (${esc(t.subject)}) — ${nb(hrs(t.remainingMinutes))} hrs short`))
+    + `Either add a window on ${sb(lightestDay().slice(0, 3))} or lower a baseline in step 01.`,
+    chips:["Add 2 hours on " + lightestDay().slice(0, 3).toLowerCase(), "Give me a tip"] };
+}
+function cmdIdle(){
+  if(!engine) return needRun();
+  const s = engine.stats;
+  const extra = s.extraSessions
+    ? ` The extra pass already recovered ${nb(hrs(s.extraAllocated))} hrs of it across ${nb(s.extraSessions)} sessions.`
+    : ` Turn on ${sb("fill spare window time")} in step 01 and I pour the highest-VECTOR topics into it.`;
+  return { html:`${nb(hrs(s.remainingTime))} hrs inside your windows are still empty (${nb(utilPct(s).toFixed(1))}% used).` + extra,
+    chips:["Fill spare time on", "Show the timetable", "Give me a tip"] };
+}
+function cmdTips(){
+  const out = [];
+  if(!engine) out.push(`Say ${sb("run the engine")} first — the advice gets much sharper with a plan.`);
+  if(!facts().avail) out.push(`You have no study windows. Add one with ${sb("add 2 hours on saturday")}.`);
+  if(engine){
+    const s = engine.stats;
+    if(s.remainingNeed > 0.5) out.push(`You are ${nb(hrs(s.remainingNeed))} hrs short of the AURA budget — a ${nb("90")} min window on ${sb(lightestDay().slice(0, 3))} closes most of it.`);
+    if(utilPct(s) < 80 && s.remainingTime > 20) out.push(`${nb(hrs(s.remainingTime))} hrs inside your windows sit idle — switch on ${sb("fill spare window time")}.`);
+    const low = engine.vectorTasks.filter(t => t.confidence <= 3).sort((a, b) => b.vectorScore - a.vectorScore)[0];
+    if(low) out.push(`${sb(low.topic)} is at confidence ${nb(low.confidence)}/10 — short recall beats re-reading there.`);
+    const heavy = DAYS.map(d => [d, (engine.schedule[d] || []).reduce((a, x) => a + x.minutes, 0)]).sort((a, b) => b[1] - a[1])[0];
+    if(heavy && heavy[1] > 200) out.push(`${sb(heavy[0].slice(0, 3))} carries ${nb(hrs(heavy[1]))} hrs — your heaviest day. Move an hour to ${sb(lightestDay().slice(0, 3))}.`);
+    const safe = engine.vectorTasks.filter(t => t.confidence >= 8).length;
+    if(safe) out.push(`${nb(safe)} topic(s) already feel safe. Raising their confidence in step 01 pushes minutes toward the weak ones.`);
+  } else {
+    out.push(`Keep every window at least ${nb(MIN_SESSION)} min — FORGE refuses anything shorter.`);
+    out.push(`Sessions cap at ${nb(MAX_SESSION)} min, then a ${nb(BREAK_TIME)} min break.`);
+  }
+  if(!out.length) out.push(`Nothing obviously wrong. More windows means more coverage.`);
+  return { html:`What I would change:` + ul(out.slice(0, 4)),
+    chips:["Add 2 hours on " + lightestDay().slice(0, 3).toLowerCase(), "What didn't fit?", "Explain my plan"] };
+}
+function cmdErrors(){
+  const { errors } = validate(state);
+  const noWin = !DAYS.some(d => (state.windows[d] || []).length);
+  if(!errors.length && !noWin) return { html:`Nothing is blocking the run — every field validates. Say ${sb("run the engine")}.`, chips:["Run the engine"] };
+  const list = errors.slice(0, 5).map(e => esc(e.msg));
+  if(noWin) list.unshift("No study windows yet — add at least one.");
+  showStep("gather");
+  return { html:`${nb(list.length)} thing(s) need attention:` + ul(list) + `The offending fields are marked in step 01.`,
+    chips:["Load sample data", "Add 2 hours on saturday"] };
+}
+function cmdWindows(){
+  const rows = DAYS.filter(d => (state.windows[d] || []).length)
+    .map(d => `${sb(d.slice(0, 3))} ${esc(state.windows[d].map(w => w.start + "–" + w.end).join(", "))} · ${nb(hrs(dayMinutes(d)))} hrs`);
+  if(!rows.length) return { html:`No study windows yet. Try ${sb("add 2 hours on saturday")} or ${sb("load sample data")}.`,
+    chips:["Load sample data", "Add 2 hours on saturday"] };
+  return { html:`${nb(hrs(facts().avail))} hrs available across ${nb(rows.length)} days:` + ul(rows),
+    chips:["Run the engine", "What is weakest?", "Give me a tip"] };
+}
+function cmdList(){
+  const rows = state.subjects.map(s => {
+    const a = engine && engine.aura.subjects.find(x => x.name === s.name);
+    return `${sb(s.name)} — ${nb(s.topics.length)} topics · baseline ${nb(s.baseline)} hrs` + (a ? ` · priority ${nb(a.priorityScore.toFixed(2))}` : "");
+  });
+  if(!rows.length) return { html:`No subjects yet. Say ${sb("load sample data")} to see what ORBIT does with real input.`, chips:["Load sample data"] };
+  return { html:`Subjects:` + ul(rows) + `Topics in total: ${nb(facts().topics)}.`,
+    chips:["What is weakest?", "Explain AURA", "Run the engine"] };
+}
+function describeSubject(subj){
+  const a = engine && engine.aura.subjects.find(s => s.name === subj.name);
+  const tasks = engine ? engine.forgeTasks.filter(t => t.subject === subj.name) : [];
+  const budget = tasks.reduce((x, t) => x + t.recommendedMinutes, 0);
+  const placed = engine ? DAYS.reduce((x, d) => x + (engine.schedule[d] || []).filter(s => s.subject === subj.name).reduce((p, y) => p + y.minutes, 0), 0) : 0;
+  const lines = [`${nb(subj.topics.length)} topics · baseline ${nb(subj.baseline)} hrs · extension ${nb(state.extension)} hrs`];
+  if(a) lines.push(`AURA priority ${nb(a.priorityScore.toFixed(2))} → ${sb(a.priority.toLowerCase())}, adaptive budget ${nb(a.adaptiveTime.toFixed(2))} hrs/week`);
+  if(engine) lines.push(placed > budget + 0.5
+    ? `Scheduled ${nb(hrs(placed))} hrs — the ${nb(hrs(budget))} hrs AURA budgeted plus ${nb(hrs(placed - budget))} hrs recovered from idle windows`
+    : `Scheduled ${nb(hrs(placed))} hrs of the ${nb(hrs(budget))} hrs budgeted`);
+  return { html:`${esc(subj.name)}` + ul(lines),
+    chips: engine ? ["What is weakest?", "Show the timetable", "Give me a tip"] : ["Run the engine", "Explain AURA"] };
+}
+function describeDay(day){
+  const head = `${sb(day)} — ${nb((state.windows[day] || []).length)} window(s), ${nb(hrs(dayMinutes(day)))} hrs available.`;
+  if(!engine) return { html:head + ` Nothing forged yet.`, chips:["Run the engine", "What are my windows?"] };
+  const list = engine.schedule[day].slice().sort((a, b) => a.start - b.start);
+  const body = list.length
+    ? `<ul>${list.map(x => `<li>${toHHMM(x.start)}–${toHHMM(x.end)} · ${esc(x.topic)}${x.pass === 2 ? " <i class='mini' style='display:inline'>extra pass</i>" : ""}</li>`).join("")}</ul>`
+    : `<ul><li>Nothing scheduled — the window stayed empty.</li></ul>`;
+  return { html:head + body, chips:["Give me a tip", "Show the timetable", "What didn't fit?"] };
+}
+function cmdExplainOrbit(){
+  return { html:`ORBIT is a rule-based revision planner — four passes, no machine learning:` + ul([
+    `${sb("AURA")} weights each subject from your two tests and how hard its topics feel.`,
+    `${sb("VECTOR")} scores every topic: difficulty × low confidence × subject priority.`,
+    `${sb("FORGE")} fills your real clock windows with ${nb(MIN_SESSION)}–${nb(MAX_SESSION)} min sessions, ${nb(BREAK_TIME)} min breaks, never the same subject twice in a row.`,
+    `A second pass pours the highest-VECTOR topics into whatever minutes are still idle.`
+  ]), chips:["Explain AURA", "Explain VECTOR", "Run the engine"] };
+}
+function cmdExplainAura(){
+  if(!engine) return needRun();
+  const a = engine.aura;
+  const top = a.subjects.slice().sort((x, y) => y.priorityScore - x.priorityScore)[0];
+  return { html:`AURA = performance × trend × difficulty.` + ul([
+    `Two tests average ${nb(a.perAvg.toFixed(1))}% → ${sb(a.performance.toLowerCase())} → factor ${nb(a.performanceFactor.toFixed(2))}.`,
+    `Trend ${nb(a.trend)} marks → ${sb(a.trendStatus.toLowerCase())} → factor ${nb(a.trendFactor.toFixed(2))}.`,
+    `Difficulty factor = (baseline + extension) ÷ baseline + average difficulty ÷ 10.`,
+    `Bands: ${nb("≥ 2.0")} critical · ${nb("≥ 1.5")} high · ${nb("≥ 1.1")} medium.`
+  ]) + (top ? `Heaviest right now: ${sb(top.name)} at ${nb(top.priorityScore.toFixed(2))}.` : ""),
+  chips:["Explain VECTOR", "What is weakest?", "Explain my plan"] };
+}
+function cmdExplainVector(){
+  if(!engine) return needRun();
+  const t = engine.vectorTasks.slice().sort((x, y) => y.vectorScore - x.vectorScore)[0];
+  return { html:`VECTOR ranks topics. Weakness = (difficulty ÷ 10) × ((10 − confidence) ÷ 10), multiplied by the subject's AURA priority.`
+    + `<ul><li>Bands: ${nb("≥ 0.50")} critical · ${nb("≥ 0.30")} high · ${nb("≥ 0.15")} medium.</li>`
+    + (t ? `<li>Highest today: ${sb(t.topic)} at ${nb(t.vectorScore.toFixed(3))} (${sb(t.target.toLowerCase())}).</li>` : "")
+    + `<li>Each subject's AURA budget is split between its topics in proportion to this score.</li></ul>`,
+    chips:["Why is " + (t ? t.topic.toLowerCase() : "it") + " first?", "Explain FORGE", "What is weakest?"] };
+}
+function cmdExplainForge(){
+  return { html:`FORGE walks your windows in clock order and applies five hard rules:` + ul([
+    `A session is at most ${nb(MAX_SESSION)} min and never under ${nb(MIN_SESSION)} min.`,
+    `After a full hour it inserts a ${nb(BREAK_TIME)} min break.`,
+    `It avoids the same subject twice back to back while another topic is waiting.`,
+    `Minutes come from each topic's AURA budget, split by VECTOR score.`,
+    `A second pass fills leftover gaps with the highest-VECTOR topics still hungry.`
+  ]), chips:["Show the timetable", "What didn't fit?", "Explain VECTOR"] };
+}
+function fallback(q){
+  return { html:`I have no rule for “${esc(String(q).slice(0, 60))}”. I am best at the numbers in your plan, why a topic sits where it does, and editing windows, baselines, difficulty or confidence.`,
+    chips:["What can you do?", "What is weakest?", "Give me a tip", "Run the engine"] };
+}
+
+/* ---- intent table: first match wins ---- */
+const INTENTS = [
+  [/^(hi|hey|hello|yo|hiya|good (morning|afternoon|evening))\b/, q => {
+    const f = facts();
+    return { html:`Hey. ${nb(f.topics)} topics across ${nb(f.subjects)} subjects, ${nb(hrs(f.avail))} hrs of windows.`
+      + (engine ? ` The plan holds ${nb(hrs(engine.stats.totalAllocated))} hrs of work.` : ` Say ${sb("run the engine")} when you are ready.`),
+      chips:["Explain my plan", "What is weakest?", "Give me a tip"] };
+  }],
+  [/\b(thanks|thank you|cheers|nice one|great job)\b/, () => ({ html:`Any time. I am just arithmetic in a nice jacket.`, chips:["Give me a tip", "What didn't fit?"] })],
+  [/\b(who are you|what are you|your name)\b/, () => ({
+    html:`The ORBIT copilot. I read the data on this page and can change it — every rule I quote is the one the engine ran. Nothing leaves your machine.`,
+    chips:["What can you do?", "Explain ORBIT"] })],
+  [/\b(help|what can you do|commands|capabilities)\b/, () => ({
+    html:`Four things:` + ul([
+      `Read the plan — ${sb("explain my plan")}, ${sb("what is weakest?")}, ${sb("what didn't fit?")}`,
+      `Explain the rules — ${sb("explain AURA")}, ${sb("explain VECTOR")}, ${sb("why is integral calculus first?")}`,
+      `Edit your data — ${sb("add 2 hours on saturday")}, ${sb("set physics baseline to 3")}, ${sb("set wave optics confidence to 6")}, ${sb("fill spare time on")}`,
+      `Drive the page — ${sb("run the engine")}, ${sb("show the timetable")}, ${sb("compact view")}, ${sb("copy console")}, ${sb("load sample data")}`
+    ]), chips:["Explain my plan", "What is weakest?", "Run the engine"] })],
+  [/\b(what is|explain|tell me about)\b.*\borbit\b/, () => cmdExplainOrbit()],
+  [/\b(error|errors|wrong|invalid|problem|broken|can'?t (run|forge)|why can'?t|refus)/, () => cmdErrors()],
+  [/\b(copy|download|save|print|export)\b/, q => cmdExport(q)],
+  [/\b(console|ascii|raw text)\b/, () => cmdExplainConsole()],
+  [/\b(fill|auto-?fill)\b/, q => cmdFill(q)],
+  [/\b(add|put|give me|schedule|make)\b[^?]*\b(window|windows|slot|block|hour|hours|hr|min|mins|minutes)\b/, q => cmdAddWindow(q)],
+  [/\bbaselines?\b/, q => cmdBaseline(q)],
+  [/\b(difficulty|confidence)\b/, q => cmdSetTopic(q)],
+  [/\bextension\b/, q => cmdExtension(q)],
+  [/\b(my )?(tests?|scores?|marks?)\b[^0-9]*\d/, q => cmdTests(q)],
+  [/\b(run|rerun|re-?run|recalculate|rebuild|optimi[sz]e|generate|calculate)\b|\bforge (the )?(plan|timetable|it)\b/, () => cmdRun()],
+  [/\b(sample|demo|example data|test data)\b/, () => {
+    state = sampleState(); resetResults(); loadStateIntoUI(); showStep("gather");
+    const f = facts();
+    return { html:`Loaded a sample student: ${nb(f.subjects)} subjects, ${nb(f.topics)} topics, ${nb(hrs(f.avail))} hrs of windows. Say ${sb("run the engine")}.`,
+      chips:["Run the engine", "Explain my plan"] };
+  }],
+  [/\b(clear|wipe|reset|blank)\b[^?]*\b(everything|all|form|data|slate|board|it)\b|\bstart over\b/, () => {
+    state = emptyState(); resetResults(); loadStateIntoUI(); showStep("gather");
+    return { html:`Cleared — blank slate. Add a window first, e.g. ${sb("add 2 hours on monday")}.`,
+      chips:["Load sample data", "Add 2 hours on monday"] };
+  }],
+  [/\b(compact|timeline|list view|grid view)\b|\bview\b.*\b(compact|timeline|list)\b/, q => cmdView(q)],
+  [/\b(go to|open|show( me)?|jump to|navigate to)\b/, q => cmdGo(q)],
+  [/\b(weakest|hardest|worst|toughest|most important|top priorit)/, q => cmdWeakest(q)],
+  [/\b(easiest|strongest|safest)\b/, () => cmdEasiest()],
+  [/\bwhy\b/, q => cmdWhy(q)],
+  [/\baura\b|\bsubject priority\b/, () => cmdExplainAura()],
+  [/\bvector\b/, () => cmdExplainVector()],
+  [/\bforge\b|\ballocation\b|\bscheduler\b/, () => cmdExplainForge()],
+  [/\b(not fit|didn'?t fit|missing|unmet|left over|still need|short of|unscheduled)\b/, () => cmdUnmet()],
+  [/\b(tip|tips|advice|suggest|improve|better|what should i do)\b/, () => cmdTips()],
+  [/\b(idle|free time|spare|unused|waste|empty)\b/, () => cmdIdle()],
+  [/\b(when am i|my windows|how many hours|how much time|available time|do i study)\b/, () => cmdWindows()],
+  [/\b(what|list|show|which)\b.{0,24}\b(subjects|topics)\b/, () => cmdList()],
+  [/\b(summary|overview|explain my plan|how am i doing|stats|utilisation|utilization|my plan|the report|total)\b/, () => cmdSummary()]
+];
+
+function answer(raw){
+  const q = String(raw).toLowerCase().replace(/\s+/g, " ").trim();
+  for(const [re, fn] of INTENTS){
+    if(re.test(q)){
+      const r = fn(q);
+      if(r) return r;
+    }
+  }
+  const subj = findSubject(q);
+  if(subj) return describeSubject(subj);
+  const day = findDay(q);
+  if(day) return describeDay(day);
+  return fallback(raw);
+}
+
+function initChat(){
+  chatLog = loadChat();
+  if(!chatLog.length) chatLog.push({ who:"bot", html:helloHtml(), hello:true });
+  paintMsgs();
+  setChips(DEFAULT_CHIPS);
+  chatFab.addEventListener("click", () => chatPanel.classList.contains("open") ? closeChat() : openChat());
+  document.getElementById("chat-close").addEventListener("click", closeChat);
+  document.getElementById("chat-clear").addEventListener("click", () => {
+    chatLog = [{ who:"bot", html:helloHtml(), hello:true }];
+    saveChat(); paintMsgs(); setChips(DEFAULT_CHIPS);
+  });
+  chatChips.addEventListener("click", ev => {
+    const c = ev.target.closest(".qchip");
+    if(c) send(c.dataset.q);
+  });
+  document.getElementById("chat-form").addEventListener("submit", ev => { ev.preventDefault(); send(); });
+  chatInput.addEventListener("keydown", ev => {
+    if(ev.key === "ArrowUp" && !chatInput.value){
+      const mine = chatLog.filter(m => m.who === "me").pop();
+      if(mine) chatInput.value = mine.html;
+    }
+  });
+  document.addEventListener("keydown", ev => {
+    const field = /input|textarea|select/i.test((ev.target && ev.target.tagName) || "");
+    if(ev.key === "Escape" && chatPanel.classList.contains("open")){ closeChat(); return; }
+    if(ev.key === "/" && !field && !chatPanel.classList.contains("open")){ ev.preventDefault(); openChat(); }
+  });
+}
+
+/* ============================================================
+   BOOT
+   ============================================================ */
+bindGatherEvents();
+loadStateIntoUI();
+["aura", "vector", "forge", "summary"].forEach(renderStep);
+updateRail();
+initChat();
+</script>
+</body>
+</html>
